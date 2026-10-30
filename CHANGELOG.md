@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.2.0](https://github.com/tombouquet/screen-tools/compare/v1.1.0...v1.2.0) (2026-10-30)
+
+
+### Features
+
+* countdown before recording and stop from toolbar icon ([#7](https://github.com/tombouquet/screen-tools/issues/7)) ([a02e174](https://github.com/tombouquet/screen-tools/commit/a02e1744331ff9d84d89b95cc940ca0fea7d4b36))
+
 ## [1.1.0](https://github.com/tombouquet/screen-tools/compare/v1.0.1...v1.1.0) (2026-10-30)
 
 
