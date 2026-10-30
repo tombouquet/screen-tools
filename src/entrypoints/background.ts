@@ -1,9 +1,11 @@
 // Opens the recorder in its own small window when the toolbar popup asks (one window
 // at a time), takes screenshots, and runs the update check. Opens the changelog after
-// installs and version changes.
+// installs and version changes. Mid-recording the popup is off, so a toolbar click
+// lands here and stops the recording.
 import { appUrl } from '@/lib/download';
 import type { AppMessage } from '@/lib/messages';
 import { takeScreenshot } from '@/lib/screenshot';
+import { resetToolbar } from '@/lib/toolbar';
 import { CHECK_ALARM, applyBadge, checkForUpdate, checkIfStale, openUpdateNotification, scheduleChecks } from '@/lib/updates';
 import { currentVersion } from '@/lib/version';
 
@@ -53,11 +55,27 @@ async function centredPosition(): Promise<{ left?: number; top?: number }> {
   }
 }
 
+/** Asks the recorder to stop. If none answers (it was closed), puts the menu back and opens it. */
+async function stopRecording(): Promise<void> {
+  const message: AppMessage = { type: 'stopRecording' };
+  const stopped = await chrome.runtime.sendMessage(message).catch(() => false);
+  if (stopped === true) return;
+  await resetToolbar();
+  // Needs Chrome 127; on older versions the next click opens the menu.
+  await chrome.action.openPopup?.().catch(() => {});
+}
+
 export default defineBackground(() => {
   chrome.windows.onRemoved.addListener(async (windowId) => {
     const { [WINDOW_KEY]: existing } = await chrome.storage.session.get(WINDOW_KEY);
-    if (existing === windowId) await chrome.storage.session.remove(WINDOW_KEY);
+    if (existing !== windowId) return;
+    await chrome.storage.session.remove(WINDOW_KEY);
+    // Closing the recorder mid-recording leaves no page to put the menu back.
+    await resetToolbar();
   });
+
+  // Only fires while the popup is off, i.e. during a countdown or recording.
+  chrome.action.onClicked.addListener(() => void stopRecording());
 
   chrome.runtime.onMessage.addListener((message: AppMessage) => {
     if (message?.type === 'checkForUpdate') void checkIfStale();
@@ -76,7 +94,8 @@ export default defineBackground(() => {
   });
 
   chrome.runtime.onStartup.addListener(() => {
-    void applyBadge();
+    // Also turns the menu back on, in case Chrome quit mid-recording.
+    void resetToolbar();
     scheduleChecks();
   });
 
