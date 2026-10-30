@@ -1,6 +1,6 @@
 {
-  "name": "screen-recorder",
-  "description": "Record your screen, a window, a tab or your camera. Free, no watermark.",
+  "name": "screen-tools",
+  "description": "Record your screen, a window, a tab or your camera, and take screenshots. Free, no watermark.",
   "private": true,
   "license": "MIT",
   "version": "0.1.0",

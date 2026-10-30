@@ -1,9 +1,11 @@
 // Recordings live in IndexedDB as a row per video plus its chunks. MediaRecorder hands
 // over a chunk every few seconds and each one is written straight away, so a crash or
-// a closed window loses at most one chunk. Only the latest few recordings are kept.
+// a closed window loses at most one chunk. Screenshots are one row each. Only the
+// latest few of each are kept.
 import { openDB, type DBSchema } from 'idb';
 
 export const MAX_RECORDINGS = 5;
+export const MAX_SCREENSHOTS = 10;
 
 export interface RecordingRow {
   date: string;
@@ -20,15 +22,38 @@ export interface Recording extends RecordingRow {
   id: number;
 }
 
+export interface ScreenshotRow {
+  date: string;
+  /** The image with any edits flattened in. */
+  blob: Blob;
+  /** As captured, so edits can be reverted. */
+  original: Blob;
+  width: number;
+  height: number;
+  /** The page it was taken of. */
+  title?: string;
+  url?: string;
+  /** True once annotated or cropped, so it can be reverted. */
+  edited?: boolean;
+  /** True once downloaded or copied. */
+  saved?: boolean;
+}
+
+export interface Screenshot extends ScreenshotRow {
+  id: number;
+}
+
 interface Schema extends DBSchema {
   recordings: { key: number; value: RecordingRow };
   chunks: { key: number; value: { recording: number; data: Blob }; indexes: { recording: number } };
+  screenshots: { key: number; value: ScreenshotRow };
 }
 
-const db = openDB<Schema>('screen-recorder', 1, {
+const db = openDB<Schema>('screen-tools', 1, {
   upgrade(database) {
     database.createObjectStore('recordings', { autoIncrement: true });
     database.createObjectStore('chunks', { autoIncrement: true }).createIndex('recording', 'recording');
+    database.createObjectStore('screenshots', { autoIncrement: true });
   },
 });
 
@@ -96,4 +121,38 @@ export async function listRecordings(): Promise<Recording[]> {
 export async function pruneRecordings(keep = MAX_RECORDINGS - 1): Promise<void> {
   const recordings = await listRecordings();
   for (const old of recordings.slice(keep)) await deleteRecording(old.id);
+}
+
+/** Stores a new screenshot and deletes the oldest beyond the limit. */
+export async function addScreenshot(row: Omit<ScreenshotRow, 'date'>): Promise<number> {
+  const database = await db;
+  const id = await database.add('screenshots', { ...row, date: new Date().toISOString() });
+  const keys = await database.getAllKeys('screenshots');
+  for (const old of keys.sort((a, b) => b - a).slice(MAX_SCREENSHOTS)) await database.delete('screenshots', old);
+  return id;
+}
+
+export async function getScreenshot(id: number): Promise<Screenshot | undefined> {
+  const row = await (await db).get('screenshots', id);
+  return row && { ...row, id };
+}
+
+export async function updateScreenshot(id: number, patch: Partial<ScreenshotRow>): Promise<void> {
+  const database = await db;
+  const tx = database.transaction('screenshots', 'readwrite');
+  const row = await tx.store.get(id);
+  if (row) await tx.store.put({ ...row, ...patch }, id);
+  await tx.done;
+}
+
+export async function deleteScreenshot(id: number): Promise<void> {
+  await (await db).delete('screenshots', id);
+}
+
+/** Newest first. */
+export async function listScreenshots(): Promise<Screenshot[]> {
+  const database = await db;
+  const tx = database.transaction('screenshots');
+  const [rows, keys] = await Promise.all([tx.store.getAll(), tx.store.getAllKeys()]);
+  return rows.map((row, i) => ({ ...row, id: keys[i]! })).sort((a, b) => b.id - a.id);
 }

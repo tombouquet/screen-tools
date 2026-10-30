@@ -2,6 +2,7 @@ import { Camera, Circle, Mic, Monitor, Pause, Play, Plus, Save, Square, Trash2, 
 import { useEffect, useRef, useState } from 'react';
 import { toast } from 'sonner';
 import { ChoiceTiles } from '@/components/choice-tiles';
+import { MonitorCamera } from '@/components/icons';
 import { ConfirmDeleteDialog, UnsavedDialog } from '@/components/confirm-dialog';
 import { RecordedVideo } from '@/components/recorded-video';
 import { LargeFileNotice, useSaveVideo } from '@/components/save-video';
@@ -12,6 +13,7 @@ import { Label } from '@/components/ui/label';
 import { OptionSelect } from '@/components/option-select';
 import { useBeforeUnload } from '@/hooks/use-before-unload';
 import { setBusy } from '@/hooks/use-busy';
+import { navigate, useRoute } from '@/hooks/use-route';
 import { useSettings } from '@/hooks/use-settings';
 import { CaptureError } from '@/lib/capture';
 import { LARGE_FILE_BYTES } from '@/lib/compress';
@@ -22,6 +24,7 @@ import { RecordingSession, type FinishedRecording } from '@/lib/session';
 import {
   SCREEN_RESOLUTIONS,
   getSettings,
+  setCaptureSource,
   updateSettings,
   type AudioSource,
   type CaptureSource,
@@ -111,6 +114,26 @@ export function RecorderPage() {
     }
   };
 
+  // The toolbar popup opens `#/?start=<source>` to begin straight away with that source.
+  const autoStart = useRoute().match(/\?start=(screen|camera|screen-camera)$/)?.[1] as CaptureSource | undefined;
+  const autoStarted = useRef(false);
+  useEffect(() => {
+    if (!autoStart) {
+      autoStarted.current = false;
+      return;
+    }
+    if (autoStarted.current) return;
+    autoStarted.current = true;
+    navigate('/');
+    // Reads `phase` as it is now; this only reacts to the route.
+    if (phase.kind === 'finished') {
+      toast('Save or discard this recording first');
+    } else if (phase.kind === 'idle') {
+      setCaptureSource(autoStart);
+      void start();
+    }
+  }, [autoStart]);
+
   // Stop cleanly if the page goes away mid-recording; chunks so far are already saved.
   useEffect(() => () => void sessionRef.current?.stop(false), []);
 
@@ -138,91 +161,91 @@ export function RecorderPage() {
   const wantsScreen = settings.captureSource !== 'camera';
 
   return (
-    <div className="space-y-4">
-      <Card>
-        <CardHeader>
-          <CardTitle>What do you want to capture?</CardTitle>
-          <CardDescription>The screen option lets you pick your whole screen, a window or a Chrome tab.</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <ChoiceTiles<CaptureSource>
-            label="Capture"
-            value={settings.captureSource}
-            onChange={(captureSource) =>
-              updateSettings({
-                captureSource,
-                // System audio needs a screen to come from.
-                ...(captureSource === 'camera' && settings.audioSource.startsWith('system')
-                  ? { audioSource: settings.audioSource === 'system-microphone' ? 'microphone' : 'none' }
-                  : {}),
-              })
-            }
-            choices={[
-              { value: 'screen', label: 'Only screen', icons: [Monitor] },
-              { value: 'camera', label: 'Only camera', icons: [Camera] },
-              { value: 'screen-camera', label: 'Screen + camera', icons: [Monitor, Camera] },
-            ]}
-          />
-        </CardContent>
-      </Card>
-
-      <Card>
-        <CardHeader>
-          <CardTitle>Record audio?</CardTitle>
-          <CardDescription>
-            System audio is the sound from the screen, window or tab you share.
-            {!wantsScreen && ' It needs a screen capture.'}
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <ChoiceTiles<AudioSource>
-            label="Audio"
-            value={settings.audioSource}
-            onChange={(audioSource) => updateSettings({ audioSource })}
-            choices={[
-              { value: 'none', label: 'None', icons: [VolumeX] },
-              { value: 'microphone', label: 'Microphone', icons: [Mic] },
-              { value: 'system-microphone', label: 'System + mic', icons: [Volume2, Mic], disabled: !wantsScreen },
-              { value: 'system', label: 'System', icons: [Volume2], disabled: !wantsScreen },
-            ]}
-          />
-        </CardContent>
-      </Card>
-
-      <div className="flex items-center justify-between gap-4">
-        <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
-          <div className="flex items-center gap-2">
-            <Label htmlFor="format" className="text-muted-foreground">
-              Format
-            </Label>
-            <OptionSelect
-              id="format"
-              className="w-28"
-              items={formatOptions()}
-              value={settings.format}
-              onValueChange={(format) => updateSettings({ format })}
-            />
-          </div>
-          {wantsScreen && (
-            <div className="flex items-center gap-2">
-              <Label htmlFor="screen-resolution" className="text-muted-foreground">
-                Resolution
-              </Label>
-              <OptionSelect
-                id="screen-resolution"
-                className="w-44"
-                items={SCREEN_RESOLUTION_OPTIONS}
-                value={settings.screenResolution}
-                onValueChange={(screenResolution) => updateSettings({ screenResolution })}
-              />
-            </div>
-          )}
-        </div>
-        <Button size="lg" onClick={() => void start()} disabled={phase.kind === 'starting'}>
-          <Circle className="fill-record text-record" />
-          {phase.kind === 'starting' ? 'Starting…' : 'Start recording'}
-        </Button>
+    <div className="mx-auto my-auto w-full max-w-xl space-y-8 py-6">
+      <div className="space-y-1.5 text-center">
+        <h2 className="text-2xl font-semibold tracking-tight">New recording</h2>
+        <p className="text-muted-foreground text-sm">
+          Choose what to capture. Screen lets you pick your whole screen, a window or a tab.
+        </p>
       </div>
+
+      <Field label="Capture">
+        <ChoiceTiles<CaptureSource>
+          label="Capture"
+          value={settings.captureSource}
+          onChange={setCaptureSource}
+          choices={[
+            { value: 'screen', label: 'Screen', icons: [Monitor] },
+            { value: 'camera', label: 'Camera', icons: [Camera] },
+            { value: 'screen-camera', label: 'Screen + camera', icons: [MonitorCamera] },
+          ]}
+        />
+      </Field>
+
+      <Field label="Audio" hint={wantsScreen ? undefined : 'System audio needs a screen capture.'}>
+        <ChoiceTiles<AudioSource>
+          label="Audio"
+          value={settings.audioSource}
+          onChange={(audioSource) => updateSettings({ audioSource })}
+          choices={[
+            { value: 'none', label: 'None', icons: [VolumeX] },
+            { value: 'microphone', label: 'Mic', icons: [Mic] },
+            { value: 'system', label: 'System', icons: [Volume2], disabled: !wantsScreen },
+            { value: 'system-microphone', label: 'System + mic', icons: [Volume2, Mic], disabled: !wantsScreen },
+          ]}
+        />
+      </Field>
+
+      <div className="grid grid-cols-2 gap-3">
+        <Field label="Format" htmlFor="format">
+          <OptionSelect
+            id="format"
+            items={formatOptions()}
+            value={settings.format}
+            onValueChange={(format) => updateSettings({ format })}
+          />
+        </Field>
+        <Field label="Resolution" htmlFor="screen-resolution">
+          {wantsScreen ? (
+            <OptionSelect
+              id="screen-resolution"
+              items={SCREEN_RESOLUTION_OPTIONS}
+              value={settings.screenResolution}
+              onValueChange={(screenResolution) => updateSettings({ screenResolution })}
+            />
+          ) : (
+            <p className="text-muted-foreground flex h-8 items-center text-sm">Set by the camera in Settings</p>
+          )}
+        </Field>
+      </div>
+
+      <Button size="lg" className="h-11 w-full text-base" onClick={() => void start()} disabled={phase.kind === 'starting'}>
+        <Circle className="fill-record text-record" />
+        {phase.kind === 'starting' ? 'Starting…' : 'Start recording'}
+      </Button>
+    </div>
+  );
+}
+
+/** A small uppercase label over a control, with an optional note under it. */
+function Field({
+  label,
+  htmlFor,
+  hint,
+  children,
+}: {
+  label: string;
+  htmlFor?: string;
+  hint?: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <div className="space-y-2">
+      <Label htmlFor={htmlFor} className="text-muted-foreground text-xs tracking-wide uppercase">
+        {label}
+      </Label>
+      {children}
+      {hint && <p className="text-muted-foreground text-xs">{hint}</p>}
     </div>
   );
 }
@@ -240,7 +263,7 @@ function LiveView({ session, paused, onStop }: { session?: RecordingSession; pau
   }, []);
 
   return (
-    <Card>
+    <Card className="my-auto">
       <CardHeader className="flex flex-row items-center justify-between gap-4">
         <div className="flex items-center gap-3">
           <span className="relative flex size-3">
@@ -307,7 +330,7 @@ function FinishedView({
   };
 
   return (
-    <Card>
+    <Card className="my-auto">
       <CardHeader className="flex flex-row items-center justify-between gap-4">
         <div className="space-y-1.5">
           <CardTitle>Recorded video</CardTitle>
