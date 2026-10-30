@@ -45,6 +45,8 @@ pnpm zip       # zipped build in .output/
 
 To try a production build, load `.output/chrome-mv3` with **Load unpacked**. `node scripts/make-icons.mjs` redraws the icons in `public/icon/`.
 
+The Chrome Web Store images are built from screenshots of the extension on made-up data: `pnpm screenshots` captures them and `pnpm showcase` composes the upload-ready images in `out/showcase/`. See [Listing screenshots](docs/guides/listing-screenshots.md) and [Listing image style](docs/reference/listing-image-style.md).
+
 Built with [WXT](https://wxt.dev), React, TypeScript, Tailwind CSS v4 and shadcn/ui.
 
 ## Releasing
