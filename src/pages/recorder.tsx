@@ -1,6 +1,7 @@
 import { Camera, Circle, Mic, Monitor, Pause, Play, Plus, Save, Square, Trash2, Volume2, VolumeX } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import { toast } from 'sonner';
+import { browser, type Browser } from 'wxt/browser';
 import { ChoiceTiles } from '@/components/choice-tiles';
 import { MonitorCamera } from '@/components/icons';
 import { ConfirmDeleteDialog, UnsavedDialog } from '@/components/confirm-dialog';
@@ -32,11 +33,15 @@ import {
   type ScreenResolutionId,
 } from '@/lib/settings';
 import { resetToolbar, showCountdown, showRecording } from '@/lib/toolbar';
+import { platform } from '@/platform';
 
 /** Seconds between picking what to share and the recording starting. */
 const COUNTDOWN_SECONDS = 3;
 
 const SCREEN_RESOLUTION_OPTIONS = SCREEN_RESOLUTIONS.map((r) => ({ value: r.id as ScreenResolutionId, label: r.label }));
+
+/** What the screen picker offers besides the whole screen. */
+const SCREEN_SOURCES = platform.capabilities.tabCapture ? 'your whole screen, a window or a tab' : 'your whole screen or a window';
 
 type Phase =
   | { kind: 'idle' }
@@ -70,10 +75,9 @@ function showCaptureError(error: unknown) {
   });
 }
 
-function focusThisWindow() {
-  chrome.windows.getCurrent((window) => {
-    if (window.id !== undefined) void chrome.windows.update(window.id, { focused: true });
-  });
+async function focusThisWindow() {
+  const { id } = await browser.windows.getCurrent();
+  if (id !== undefined) await browser.windows.update(id, { focused: true });
 }
 
 export function RecorderPage() {
@@ -91,7 +95,7 @@ export function RecorderPage() {
     if (!session) return;
     sessionRef.current = undefined;
     void resetToolbar();
-    focusThisWindow();
+    void focusThisWindow();
     if (!session.started) {
       session.cancel();
       setPhase({ kind: 'idle' });
@@ -148,16 +152,17 @@ export function RecorderPage() {
 
   // Mid-recording, a click on the toolbar icon reaches the worker, which asks here to stop.
   useEffect(() => {
-    const onMessage = (message: AppMessage, _sender: chrome.runtime.MessageSender, respond: (stopped: boolean) => void) => {
+    const onMessage = (message: AppMessage, _sender: Browser.runtime.MessageSender, respond: (stopped: boolean) => void) => {
       if (message?.type !== 'stopRecording' || !sessionRef.current) return;
       void stop();
       respond(true);
     };
-    chrome.runtime.onMessage.addListener(onMessage);
-    return () => chrome.runtime.onMessage.removeListener(onMessage);
+    browser.runtime.onMessage.addListener(onMessage);
+    return () => browser.runtime.onMessage.removeListener(onMessage);
   }, []);
 
   // The toolbar popup opens `#/?start=<source>` to begin straight away with that source.
+  // Where the screen picker needs a click in the page, a screen source only gets picked; the user clicks Start.
   const autoStart = useRoute().match(/\?start=(screen|camera|screen-camera)$/)?.[1] as CaptureSource | undefined;
   const autoStarted = useRef(false);
   useEffect(() => {
@@ -173,7 +178,8 @@ export function RecorderPage() {
       toast('Save or discard this recording first');
     } else if (phase.kind === 'idle') {
       setCaptureSource(autoStart);
-      void start();
+      // Camera-only never opens the screen picker, so it can start on its own anywhere.
+      if (autoStart === 'camera' || !platform.capabilities.screenPickerNeedsGesture) void start();
     }
   }, [autoStart]);
 
@@ -212,13 +218,14 @@ export function RecorderPage() {
   }
 
   const wantsScreen = settings.captureSource !== 'camera';
+  const { systemAudio } = platform.capabilities;
 
   return (
     <div className="mx-auto my-auto w-full max-w-xl space-y-8 py-6">
       <div className="space-y-1.5 text-center">
         <h2 className="text-2xl font-semibold tracking-tight">New recording</h2>
         <p className="text-muted-foreground text-sm">
-          Choose what to capture. Screen lets you pick your whole screen, a window or a tab.
+          Choose what to capture. Screen lets you pick {SCREEN_SOURCES}.
         </p>
       </div>
 
@@ -235,7 +242,7 @@ export function RecorderPage() {
         />
       </Field>
 
-      <Field label="Audio" hint={wantsScreen ? undefined : 'System audio needs a screen capture.'}>
+      <Field label="Audio" hint={wantsScreen || !systemAudio ? undefined : 'System audio needs a screen capture.'}>
         <ChoiceTiles<AudioSource>
           label="Audio"
           value={settings.audioSource}
@@ -243,8 +250,13 @@ export function RecorderPage() {
           choices={[
             { value: 'none', label: 'None', icons: [VolumeX] },
             { value: 'microphone', label: 'Mic', icons: [Mic] },
-            { value: 'system', label: 'System', icons: [Volume2], disabled: !wantsScreen },
-            { value: 'system-microphone', label: 'System + mic', icons: [Volume2, Mic], disabled: !wantsScreen },
+            // Hidden where the browser can't record system audio.
+            ...(systemAudio
+              ? [
+                  { value: 'system' as const, label: 'System', icons: [Volume2], disabled: !wantsScreen },
+                  { value: 'system-microphone' as const, label: 'System + mic', icons: [Volume2, Mic], disabled: !wantsScreen },
+                ]
+              : []),
           ]}
         />
       </Field>

@@ -5,9 +5,13 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { navigate } from '@/hooks/use-route';
 import { currentVersion } from '@/lib/version';
 import { Inline, parseChangelog } from '@/pages/changelog';
+import { platform } from '@/platform';
+
+/** What the screen picker offers, e.g. "a window or a tab". */
+const SOURCES = platform.capabilities.tabCapture ? 'a window, a tab' : 'a window';
 
 const ACTIONS: { path: string; label: string; description: string; icon: LucideIcon }[] = [
-  { path: '/', label: 'Record', description: 'Your screen, a window, a tab or your camera, with audio.', icon: Video },
+  { path: '/', label: 'Record', description: `Your screen, ${SOURCES} or your camera, with audio.`, icon: Video },
   { path: '/videos', label: 'Latest videos', description: 'Your last 5 recordings, saved as you record.', icon: Film },
   { path: '/screenshots', label: 'Screenshots', description: 'Your last 10 screenshots, ready to annotate.', icon: Image },
   { path: '/player', label: 'Player', description: 'Play any video file, or make an old WebM seekable.', icon: PlayCircle },
@@ -15,9 +19,11 @@ const ACTIONS: { path: string; label: string; description: string; icon: LucideI
 ];
 
 const STEPS = [
-  'Pin Screen Tools: click the puzzle piece in the Chrome toolbar, then the pin next to Screen Tools.',
+  platform.copy.pinHint,
   'Click the toolbar icon to record the screen, the camera or both, or to take a screenshot.',
-  'Recording starts after a 3-second countdown. While recording, the icon shows REC; click it to stop.',
+  platform.capabilities.screenPickerNeedsGesture
+    ? 'Click Start recording, pick what to share, and recording starts after a 3-second countdown. While recording, the icon shows REC; click it to stop.'
+    : 'Recording starts after a 3-second countdown. While recording, the icon shows REC; click it to stop.',
 ];
 
 export function HomePage() {
@@ -31,7 +37,7 @@ export function HomePage() {
       <div className="space-y-1">
         <h2 className="text-xl font-semibold">Welcome to Screen Tools</h2>
         <p className="text-muted-foreground text-sm">
-          Record your screen, a window, a tab or your camera, and take annotated screenshots. Free, no sign-up, no
+          Record your screen, {SOURCES} or your camera, and take annotated screenshots. Free, no sign-up, no
           watermark, and nothing leaves your computer.
         </p>
       </div>

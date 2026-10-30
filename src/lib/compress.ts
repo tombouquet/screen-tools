@@ -1,6 +1,7 @@
-// Re-encodes a video smaller with Chrome's own (usually hardware) encoders, through
+// Re-encodes a video smaller with the browser's own (usually hardware) encoders, through
 // Mediabunny and WebCodecs. Each preset caps the resolution and sets a bitrate, which
-// is also what the size estimate is worked out from.
+// is also what the size estimate is worked out from. Presets the browser has no encoder
+// for are marked, so the save dialog doesn't offer them.
 import {
   ALL_FORMATS,
   BlobSource,
@@ -17,6 +18,7 @@ import {
   type AudioCodec,
   type VideoCodec,
 } from 'mediabunny';
+import { platform } from '@/platform';
 import { isWebm } from './formats';
 
 /** Above this, the app suggests compressing: roughly the attachment limit of email and most chat apps. */
@@ -87,6 +89,8 @@ export interface PresetPlan {
   estimatedBytes: number;
   /** False when the estimate isn't meaningfully smaller than the file already is. */
   worthIt: boolean;
+  /** False when the browser can't encode this size (or its audio), so it can't be offered. */
+  encodable: boolean;
 }
 
 /** Reads the length, size and tracks of a video. */
@@ -111,7 +115,7 @@ export async function analyzeVideo(blob: Blob): Promise<VideoInfo> {
 const even = (n: number) => Math.max(2, Math.round(n / 2) * 2);
 
 /** What a preset would produce for this video, including the estimated file size. */
-export function planPreset(preset: CompressionPreset, info: VideoInfo): PresetPlan {
+function planPreset(preset: CompressionPreset, info: VideoInfo): Omit<PresetPlan, 'encodable'> {
   const maxWidth = (preset.maxHeight * 16) / 9;
   const scale = Math.min(1, preset.maxHeight / info.height, maxWidth / info.width);
   const width = even(info.width * scale);
@@ -133,12 +137,23 @@ export function planPreset(preset: CompressionPreset, info: VideoInfo): PresetPl
   };
 }
 
+/** Plans every preset for this video and checks the browser can encode each one. */
+export async function planPresets(info: VideoInfo, mimeType: string): Promise<PresetPlan[]> {
+  return Promise.all(
+    PRESETS.map(async (preset) => {
+      const plan = planPreset(preset, info);
+      const { videoCodec, audioCodec } = await pickCodecs(mimeType, plan);
+      return { ...plan, encodable: Boolean(videoCodec) && (!info.hasAudio || Boolean(audioCodec)) };
+    }),
+  );
+}
+
 /** Compressed copies stay WebM if they were WebM; everything else becomes MP4. */
 export const compressedExtension = (mimeType: string) => (isWebm(mimeType) ? '.webm' : '.mp4');
 
 /** The best-quality preset that gets under the sharing limit, else the smallest that helps. */
 export function suggestedPreset(plans: PresetPlan[]): PresetId | undefined {
-  const useful = plans.filter((p) => p.worthIt);
+  const useful = plans.filter((p) => p.worthIt && p.encodable);
   return (useful.find((p) => p.estimatedBytes <= LARGE_FILE_BYTES) ?? useful.at(-1))?.preset.id;
 }
 
@@ -150,6 +165,18 @@ const AUDIO_CODECS: Record<'mp4' | 'webm', AudioCodec[]> = {
   mp4: ['aac', 'opus'],
   webm: ['opus', 'vorbis'],
 };
+
+/** The first video and audio codecs the browser can encode for this plan, in the file's container. */
+async function pickCodecs(mimeType: string, plan: Pick<PresetPlan, 'width' | 'height' | 'videoBitrate' | 'audioBitrate'>) {
+  const container = isWebm(mimeType) ? 'webm' : 'mp4';
+  const videoQuality = new Quality({ bitrate: plan.videoBitrate, bitrateMode: 'variable' });
+  const audioQuality = new Quality({ bitrate: plan.audioBitrate || 64_000, bitrateMode: 'variable' });
+  const [videoCodec, audioCodec] = await Promise.all([
+    getFirstEncodableVideoCodec(VIDEO_CODECS[container], { width: plan.width, height: plan.height, quality: videoQuality }),
+    getFirstEncodableAudioCodec(AUDIO_CODECS[container], { quality: audioQuality }),
+  ]);
+  return { container, videoCodec, audioCodec, videoQuality, audioQuality };
+}
 
 export interface CompressedVideo {
   blob: Blob;
@@ -175,19 +202,9 @@ export function compressVideo(
   let cancelled = false;
 
   const run = async (): Promise<CompressedVideo> => {
-    const container = isWebm(mimeType) ? 'webm' : 'mp4';
+    const { container, videoCodec, audioCodec, videoQuality, audioQuality } = await pickCodecs(mimeType, plan);
     const format = container === 'webm' ? new WebMOutputFormat() : new Mp4OutputFormat({ fastStart: 'in-memory' });
-    const videoQuality = new Quality({ bitrate: plan.videoBitrate, bitrateMode: 'variable' });
-    const audioQuality = new Quality({ bitrate: plan.audioBitrate || 64_000, bitrateMode: 'variable' });
-    const [videoCodec, audioCodec] = await Promise.all([
-      getFirstEncodableVideoCodec(VIDEO_CODECS[container], {
-        width: plan.width,
-        height: plan.height,
-        quality: videoQuality,
-      }),
-      getFirstEncodableAudioCodec(AUDIO_CODECS[container], { quality: audioQuality }),
-    ]);
-    if (!videoCodec) throw new Error("Chrome can't encode video on this computer");
+    if (!videoCodec) throw new Error(`${platform.name} can't encode video on this computer`);
 
     const input = new Input({ source: new BlobSource(blob), formats: ALL_FORMATS });
     try {

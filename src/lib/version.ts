@@ -1,1 +1,3 @@
-export const currentVersion = () => chrome.runtime.getManifest().version;
+import { browser } from 'wxt/browser';
+
+export const currentVersion = () => browser.runtime.getManifest().version;

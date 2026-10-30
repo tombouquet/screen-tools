@@ -1,4 +1,4 @@
-// Functions injected into the captured tab with chrome.scripting.executeScript({ func }).
+// Functions injected into the captured tab with browser.scripting.executeScript({ func }).
 // Chrome sends each one's source text, so they can't use imports or anything outside
 // their own body.
 
