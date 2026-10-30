@@ -1,15 +1,23 @@
 // The toolbar popup: one click to start a recording or take a screenshot.
-import { AppWindow, Camera, Eye, Film, Image, Monitor, ScrollText, Settings, SquareDashedMousePointer, type LucideIcon } from 'lucide-react';
+import { AppWindow, Camera, createLucideIcon, Eye, Film, Image, Monitor, ScrollText, Settings, SquareDashedMousePointer, type LucideIcon } from 'lucide-react';
 import { ThemeProvider } from '@/components/theme-provider';
 import { Button } from '@/components/ui/button';
 import { openAppTab } from '@/lib/download';
 import type { AppMessage, ScreenshotMode } from '@/lib/messages';
 import type { CaptureSource } from '@/lib/settings';
 
-const RECORD: { source: CaptureSource; label: string; icons: LucideIcon[] }[] = [
-  { source: 'screen', label: 'Screen', icons: [Monitor] },
-  { source: 'camera', label: 'Camera', icons: [Camera] },
-  { source: 'screen-camera', label: 'Screen + camera', icons: [Monitor, Camera] },
+/** A monitor with the camera bubble in its corner, like the overlay in a recording. */
+const MonitorCamera = createLucideIcon('monitor-camera', [
+  ['rect', { width: '20', height: '14', x: '2', y: '3', rx: '2', key: 'screen' }],
+  ['path', { d: 'M8 21h8', key: 'base' }],
+  ['path', { d: 'M12 17v4', key: 'stand' }],
+  ['circle', { cx: '16.5', cy: '11.5', r: '2.5', key: 'camera' }],
+]);
+
+const RECORD: { source: CaptureSource; label: string; icon: LucideIcon }[] = [
+  { source: 'screen', label: 'Screen', icon: Monitor },
+  { source: 'camera', label: 'Camera', icon: Camera },
+  { source: 'screen-camera', label: 'Screen + camera', icon: MonitorCamera },
 ];
 
 const SCREENSHOT: { mode: ScreenshotMode; label: string; icon: LucideIcon }[] = [
@@ -60,18 +68,14 @@ export function PopupPage() {
         </header>
 
         <Section title="Record">
-          {RECORD.map(({ source, label, icons }) => (
+          {RECORD.map(({ source, label, icon: Icon }) => (
             <Button
               key={source}
               variant="outline"
               className={actionClass}
               onClick={() => void send({ type: 'openApp', route: `/?start=${source}` })}
             >
-              <span className="flex w-11 items-center gap-1">
-                {icons.map((Icon, i) => (
-                  <Icon key={i} />
-                ))}
-              </span>
+              <Icon />
               {label}
             </Button>
           ))}
@@ -80,9 +84,7 @@ export function PopupPage() {
         <Section title="Screenshot">
           {SCREENSHOT.map(({ mode, label, icon: Icon }) => (
             <Button key={mode} className={actionClass} onClick={() => void screenshot(mode)}>
-              <span className="flex w-11 items-center">
-                <Icon />
-              </span>
+              <Icon />
               {label}
             </Button>
           ))}
