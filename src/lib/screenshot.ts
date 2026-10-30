@@ -30,7 +30,9 @@ export async function takeScreenshot(mode: ScreenshotMode, tabId: number, window
     const id = await addScreenshot({ blob, original: blob, width, height, title: tab.title, url: tab.url });
     await chrome.tabs.create({ url: appUrl(`/screenshots/${id}`), index: tab.index + 1, openerTabId: tabId });
   } catch (error) {
-    console.error(error);
+    // Chrome refusing a page is expected; console.error would list it on chrome://extensions.
+    if (isBlockedPage(error)) console.warn(error);
+    else console.error(error);
     chrome.notifications.create({
       type: 'basic',
       iconUrl: chrome.runtime.getURL('/icon/128.png'),
@@ -38,6 +40,15 @@ export async function takeScreenshot(mode: ScreenshotMode, tabId: number, window
       message: 'Chrome blocks screenshots of its own pages, the Web Store and some others. Try another tab.',
     });
   }
+}
+
+/**
+ * Chrome's errors for pages extensions can't touch: its own pages, the Web Store
+ * ("The extensions gallery cannot be scripted.") and pages without host access.
+ */
+function isBlockedPage(error: unknown): boolean {
+  const message = error instanceof Error ? error.message : String(error);
+  return /cannot be scripted|cannot access|permission is required|not in effect/i.test(message);
 }
 
 async function captureVisible(windowId: number): Promise<Blob> {
