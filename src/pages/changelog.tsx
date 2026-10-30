@@ -5,14 +5,14 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { currentVersion } from '@/lib/version';
 import { cn } from '@/lib/utils';
 
-interface Release {
+export interface Release {
   version: string;
   date?: string;
   sections: { heading: string; items: string[] }[];
 }
 
 /** Reads just what Release Please writes: `## version (date)`, `###` headings and `*` lists. */
-function parse(markdown: string): Release[] {
+export function parseChangelog(markdown: string): Release[] {
   const releases: Release[] = [];
   for (const line of markdown.split('\n')) {
     const version = line.match(/^## \[?(\d+\.\d+\.\d+)\]?(?:\([^)]*\))?\s*(?:\(([^)]+)\))?/);
@@ -29,7 +29,7 @@ function parse(markdown: string): Release[] {
 }
 
 /** `code`, **bold** and [text](https://…) links. */
-function Inline({ text }: { text: string }) {
+export function Inline({ text }: { text: string }) {
   const parts = text.split(/(`[^`]+`|\*\*[^*]+\*\*|\[[^\]]+\]\(https?:\/\/[^)\s]+\))/g);
   return parts.map((part, i) => {
     if (part.startsWith('`')) return <code key={i} className="bg-muted rounded px-1 font-mono text-xs">{part.slice(1, -1)}</code>;
@@ -48,7 +48,7 @@ function Inline({ text }: { text: string }) {
 
 export function ChangelogPage() {
   const current = currentVersion();
-  const releases = parse(changelog);
+  const releases = parseChangelog(changelog);
   return (
     <div className="space-y-4">
       <div className="space-y-1">

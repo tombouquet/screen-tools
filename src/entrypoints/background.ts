@@ -1,5 +1,5 @@
 // Opens the recorder in its own small window when the toolbar popup asks (one window
-// at a time) and takes screenshots. Opens the changelog after installs and version
+// at a time) and takes screenshots. Opens the home page after installs and version
 // changes. Mid-recording the popup is off, so a toolbar click lands here and stops the
 // recording.
 import { appUrl } from '@/lib/download';
@@ -84,7 +84,7 @@ export default defineBackground(() => {
   chrome.runtime.onInstalled.addListener(({ reason, previousVersion }) => {
     // Reloading an unpacked extension also fires 'update' with the same version, so only a real change counts.
     if (reason === 'install' || (reason === 'update' && previousVersion !== currentVersion())) {
-      void chrome.tabs.create({ url: appUrl('/changelog') });
+      void chrome.tabs.create({ url: appUrl('/home') });
     }
   });
 
