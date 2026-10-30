@@ -7,6 +7,7 @@ import { navigate, useRoute } from '@/hooks/use-route';
 import { cn } from '@/lib/utils';
 import { currentVersion } from '@/lib/version';
 import { ChangelogPage } from '@/pages/changelog';
+import { HomePage } from '@/pages/home';
 import { PlayerPage } from '@/pages/player';
 import { RecorderPage } from '@/pages/recorder';
 import { ScreenshotsPage } from '@/pages/screenshots';
@@ -33,6 +34,8 @@ function Page({ path }: { path: string }) {
       return <SettingsPage />;
     case '/changelog':
       return <ChangelogPage />;
+    case '/home':
+      return <HomePage />;
     default:
       return <RecorderPage />;
   }
@@ -51,8 +54,10 @@ export function App() {
       <TooltipProvider>
         <div className={cn('mx-auto flex flex-col gap-4 p-4', wide ? 'h-screen max-w-none' : 'min-h-screen max-w-4xl')}>
           <header className="flex items-center gap-3">
-            <img src="/icon/48.png" alt="" className="size-7" />
-            <h1 className="font-semibold">Screen Tools</h1>
+            <a href="#/home" className="flex items-center gap-3" title="Home">
+              <img src="/icon/48.png" alt="" className="size-7" />
+              <h1 className="font-semibold">Screen Tools</h1>
+            </a>
             <a
               href="#/changelog"
               className="text-muted-foreground hover:text-foreground text-xs underline-offset-4 hover:underline"
