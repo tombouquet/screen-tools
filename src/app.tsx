@@ -1,6 +1,5 @@
 import { Film, Image, PlayCircle, Settings, Video } from 'lucide-react';
 import { ThemeProvider } from '@/components/theme-provider';
-import { UpdateBanner } from '@/components/update-banner';
 import { Toaster } from '@/components/ui/sonner';
 import { TooltipProvider } from '@/components/ui/tooltip';
 import { useBusy } from '@/hooks/use-busy';
@@ -80,7 +79,6 @@ export function App() {
               ))}
             </nav>
           </header>
-          <UpdateBanner />
           <main className="flex min-h-0 flex-1 flex-col">
             <Page path={path} />
           </main>
