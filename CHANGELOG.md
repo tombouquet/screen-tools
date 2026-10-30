@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.4.0](https://github.com/tombouquet/screen-tools/compare/v1.3.0...v1.4.0) (2026-10-30)
+
+
+### Features
+
+* home page on install and update ([#11](https://github.com/tombouquet/screen-tools/issues/11)) ([d7254a8](https://github.com/tombouquet/screen-tools/commit/d7254a8a11610b85e4fe7b43162c96e150664c5d))
+
 ## [1.3.0](https://github.com/tombouquet/screen-tools/compare/v1.2.0...v1.3.0) (2026-10-30)
 
 
