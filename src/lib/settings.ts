@@ -18,7 +18,7 @@ export type AudioSource = 'none' | 'microphone' | 'system-microphone' | 'system'
 
 export const CAMERA_POSITIONS: CameraPosition[] = ['top-left', 'top-right', 'bottom-left', 'bottom-right'];
 export const CAMERA_SIZES: CameraSize[] = ['small', 'medium', 'large'];
-export const CAMERA_SHAPES: CameraShape[] = ['default', 'circle', 'squircle'];
+export const CAMERA_SHAPES: CameraShape[] = ['squircle', 'default', 'circle'];
 
 export const CAMERA_RESOLUTIONS = [
   { id: '1080p', label: '1080p Full HD', width: 1920, height: 1080 },
@@ -79,13 +79,13 @@ export const DEFAULT_SETTINGS: Settings = {
   audioSource: 'none',
   format: 'mp4',
   frameRate: 30,
-  screenResolution: '1080p',
+  screenResolution: 'native',
   cameraId: '',
   microphoneId: '',
   cameraResolution: '1080p',
   cameraPosition: 'bottom-right',
   cameraSize: 'small',
-  cameraShape: 'default',
+  cameraShape: 'squircle',
   cameraZoom: 1,
   cameraMirror: true,
   optimizeVideo: true,
