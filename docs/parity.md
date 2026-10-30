@@ -48,8 +48,8 @@ Reference: "Screen Recorder" by Erich Behrens (scre.io), v3.3.1, Chrome Web Stor
 
 - Original had paid "premium" overlay customisation and a watermark on Screen + Camera. Everything here is free with no watermark.
 - Added: MP4 output, the default (H.264 + AAC; falls back to WebM where Chrome can't record MP4), light/dark/system theme, recording timer, a toolbar badge and banner when a new GitHub release is out.
-- Screen resolution setting (native, 4K, 1440p, 1080p default, 720p, 480p); the original always captured at native size.
-- Camera overlay sizes are a share of the frame instead of fixed pixels, one step bigger than the original (at 1080p: small 480, medium 640, large 864 px wide), with a 24 px margin at 1080p. The square shape is a squircle.
+- Screen resolution setting (native default, 4K, 1440p, 1080p, 720p, 480p); the original always captured at native size.
+- Camera overlay sizes are a share of the frame instead of fixed pixels, one step bigger than the original (at 1080p: small 480, medium 640, large 864 px wide), with a 24 px margin at 1080p. The square shape is a squircle, and is the default.
 - Save dialog (a setting, on by default): file name plus size, either the original or a compressed copy at one of four presets (High quality 1080p, Balanced 720p, Small 720p, Smallest 480p), each with an estimated file size. Compression runs in the browser with Mediabunny and WebCodecs and the stored recording is never replaced. Videos over 25 MB get a notice that opens the dialog with a smaller size picked. The original always saved `screen-capture.webm` with no dialog; with the setting off this saves the original straight away with a dated name.
 - Optimise video defaults to on (the original defaulted to off); writing the duration header is cheap.
 - "Optimise" uses `fix-webm-duration` (writes the missing duration header) instead of `ts-ebml` cue rebuilding. Applies to WebM only; MP4 doesn't need it.

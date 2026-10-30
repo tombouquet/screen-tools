@@ -8,9 +8,9 @@ The recorder is a rebuild of the [Screen Recorder](https://chromewebstore.google
 - **Screenshots:** capture a selected area, the visible area or the full page. Each opens in an editor with arrows, rectangles, ellipses, pen, highlighter, text, pixelate and crop, with undo. Download as PNG or JPG, or copy to the clipboard. Saved at native resolution by default, or capped at 2560, 1920 or 1280 px wide in Settings. The latest 10 are kept. Full page scrolls the window, so pages that scroll an inner panel (Gmail and many web apps) capture only what's visible. Chrome blocks screenshots of its own pages and the Web Store.
 - **Capture:** only screen (whole screen, a window or a Chrome tab), only camera, or screen with a camera overlay.
 - **Audio:** none, microphone, system audio, or both mixed.
-- **Camera overlay:** pick the corner, size, shape (rectangle, circle, squircle), zoom and mirroring.
+- **Camera overlay:** pick the corner, size, shape (squircle by default, rectangle or circle), zoom and mirroring.
 - **Autosave:** recordings are written to disk every 5 seconds while you record, and the latest 5 are kept, so a crash or closed window loses at most a few seconds.
-- **Formats:** MP4 by default, or WebM, at 15, 24, 30 (default) or 60 fps, with the screen captured at native size, 4K, 1440p, 1080p (default), 720p or 480p.
+- **Formats:** MP4 by default, or WebM, at 15, 24, 30 (default) or 60 fps, with the screen captured at native size (default), 4K, 1440p, 1080p, 720p or 480p.
 - **Player:** skip back and forward, and drop in any video file to play it or make an old WebM recording seekable.
 - **Save options:** pick a file name and a size when you save: the original, or a smaller copy from presets that show the estimated file size up front. Suggested when a video is over 25 MB. Compression runs on your computer and the original is kept. Turn the dialog off to save straight away.
 - **Light and dark themes.**
