@@ -12,6 +12,7 @@ import { Label } from '@/components/ui/label';
 import { OptionSelect } from '@/components/option-select';
 import { useBeforeUnload } from '@/hooks/use-before-unload';
 import { setBusy } from '@/hooks/use-busy';
+import { navigate, useRoute } from '@/hooks/use-route';
 import { useSettings } from '@/hooks/use-settings';
 import { CaptureError } from '@/lib/capture';
 import { LARGE_FILE_BYTES } from '@/lib/compress';
@@ -22,6 +23,7 @@ import { RecordingSession, type FinishedRecording } from '@/lib/session';
 import {
   SCREEN_RESOLUTIONS,
   getSettings,
+  setCaptureSource,
   updateSettings,
   type AudioSource,
   type CaptureSource,
@@ -111,6 +113,26 @@ export function RecorderPage() {
     }
   };
 
+  // The toolbar popup opens `#/?start=<source>` to begin straight away with that source.
+  const autoStart = useRoute().match(/\?start=(screen|camera|screen-camera)$/)?.[1] as CaptureSource | undefined;
+  const autoStarted = useRef(false);
+  useEffect(() => {
+    if (!autoStart) {
+      autoStarted.current = false;
+      return;
+    }
+    if (autoStarted.current) return;
+    autoStarted.current = true;
+    navigate('/');
+    // Reads `phase` as it is now; this only reacts to the route.
+    if (phase.kind === 'finished') {
+      toast('Save or discard this recording first');
+    } else if (phase.kind === 'idle') {
+      setCaptureSource(autoStart);
+      void start();
+    }
+  }, [autoStart]);
+
   // Stop cleanly if the page goes away mid-recording; chunks so far are already saved.
   useEffect(() => () => void sessionRef.current?.stop(false), []);
 
@@ -148,15 +170,7 @@ export function RecorderPage() {
           <ChoiceTiles<CaptureSource>
             label="Capture"
             value={settings.captureSource}
-            onChange={(captureSource) =>
-              updateSettings({
-                captureSource,
-                // System audio needs a screen to come from.
-                ...(captureSource === 'camera' && settings.audioSource.startsWith('system')
-                  ? { audioSource: settings.audioSource === 'system-microphone' ? 'microphone' : 'none' }
-                  : {}),
-              })
-            }
+            onChange={setCaptureSource}
             choices={[
               { value: 'screen', label: 'Only screen', icons: [Monitor] },
               { value: 'camera', label: 'Only camera', icons: [Camera] },

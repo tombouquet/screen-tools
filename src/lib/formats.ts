@@ -1,4 +1,4 @@
-import type { OutputFormat } from './settings';
+import type { ImageFormat, OutputFormat } from './settings';
 
 // Preferred first. H.264 in WebM matches the original extension and is cheap to encode.
 const MIME_TYPES: Record<OutputFormat, string[]> = {
@@ -32,11 +32,19 @@ export function fileExtension(mimeType: string): string {
   return mimeType.startsWith('video/mp4') ? 'mp4' : 'webm';
 }
 
+function fileStamp(date: Date): string {
+  const pad = (n: number) => String(n).padStart(2, '0');
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}-${pad(date.getHours())}${pad(date.getMinutes())}${pad(date.getSeconds())}`;
+}
+
 /** e.g. screen-recording-2026-10-29-223000.webm */
 export function recordingFileName(date: Date, mimeType: string): string {
-  const pad = (n: number) => String(n).padStart(2, '0');
-  const stamp = `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}-${pad(date.getHours())}${pad(date.getMinutes())}${pad(date.getSeconds())}`;
-  return `screen-recording-${stamp}.${fileExtension(mimeType)}`;
+  return `screen-recording-${fileStamp(date)}.${fileExtension(mimeType)}`;
+}
+
+/** e.g. screenshot-2026-10-29-223000.png */
+export function screenshotFileName(date: Date, format: ImageFormat): string {
+  return `screenshot-${fileStamp(date)}.${format}`;
 }
 
 /** 'clip.final.webm' → { base: 'clip.final', extension: '.webm' }. */

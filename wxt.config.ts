@@ -12,7 +12,7 @@ export default defineConfig({
     description:
       'Record your screen, a window, a tab or your camera. Free, no sign-up, no watermark, unlimited recordings.',
     minimum_chrome_version: '116',
-    permissions: ['desktopCapture', 'storage', 'notifications', 'alarms'],
+    permissions: ['desktopCapture', 'storage', 'notifications', 'alarms', 'activeTab', 'scripting'],
     action: { default_title: 'Screen Recorder' },
     options_page: 'app.html#/settings',
   },

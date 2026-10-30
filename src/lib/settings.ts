@@ -6,6 +6,7 @@ export type CameraPosition = 'top-left' | 'top-right' | 'bottom-left' | 'bottom-
 export type CameraSize = 'small' | 'medium' | 'large';
 export type CameraShape = 'default' | 'circle' | 'squircle';
 export type OutputFormat = 'webm' | 'mp4';
+export type ImageFormat = 'png' | 'jpg';
 export type Theme = 'light' | 'dark' | 'system';
 export const FRAME_RATES = [15, 24, 30, 60] as const;
 export type FrameRate = (typeof FRAME_RATES)[number];
@@ -58,6 +59,8 @@ export interface Settings {
   showSaveOptions: boolean;
   /** The size picked last time in the save dialog. */
   saveSize: SaveSize;
+  /** The screenshot download format picked last time. */
+  imageFormat: ImageFormat;
   theme: Theme;
 }
 
@@ -78,6 +81,7 @@ export const DEFAULT_SETTINGS: Settings = {
   optimizeVideo: true,
   showSaveOptions: true,
   saveSize: 'original',
+  imageFormat: 'png',
   theme: 'system',
 };
 
@@ -110,6 +114,7 @@ function sanitize(raw: Partial<Record<keyof Settings | 'askFileName', unknown>>)
     // Was `askFileName` before the save dialog also offered sizes.
     showSaveOptions: typeof (raw.showSaveOptions ?? raw.askFileName) === 'boolean' ? Boolean(raw.showSaveOptions ?? raw.askFileName) : d.showSaveOptions,
     saveSize: oneOf(raw.saveSize, SAVE_SIZES, d.saveSize),
+    imageFormat: oneOf(raw.imageFormat, ['png', 'jpg'], d.imageFormat),
     theme: oneOf(raw.theme, ['light', 'dark', 'system'], d.theme),
   };
 }
@@ -131,6 +136,17 @@ export function updateSettings(patch: Partial<Settings>): void {
   cache = sanitize({ ...getSettings(), ...patch });
   localStorage.setItem(STORAGE_KEY, JSON.stringify(cache));
   window.dispatchEvent(new Event(CHANGE_EVENT));
+}
+
+/** Switches capture source. System audio needs a screen, so camera-only drops it. */
+export function setCaptureSource(captureSource: CaptureSource): void {
+  const { audioSource } = getSettings();
+  updateSettings({
+    captureSource,
+    ...(captureSource === 'camera' && audioSource.startsWith('system')
+      ? { audioSource: audioSource === 'system-microphone' ? 'microphone' : 'none' }
+      : {}),
+  });
 }
 
 export function subscribeSettings(listener: () => void): () => void {
