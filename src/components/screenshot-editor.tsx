@@ -63,6 +63,22 @@ const FORMAT_OPTIONS: { value: ImageFormat; label: string }[] = [
 const mimeOf = (format: ImageFormat) => (format === 'png' ? 'image/png' : 'image/jpeg');
 const isMod = (event: KeyboardEvent) => event.metaKey || event.ctrlKey;
 
+// The stage's p-4 on both sides, and room for the page footer under it.
+const STAGE_PADDING = 32;
+const FOOTER_SPACE = 40;
+/** Taller than this (height ÷ width) is a full-page shot: fit the width and scroll. */
+const TALL_RATIO = 2;
+
+/**
+ * The preview's CSS width; its height follows, keeping the aspect ratio. It's never
+ * bigger than the captured page looked on screen, and shrinks to fit the window.
+ */
+function fitWidth(view: Rect, stage: { width: number; height: number }): number {
+  const actual = view.width / (window.devicePixelRatio || 1);
+  const byHeight = view.height / view.width > TALL_RATIO ? Infinity : (stage.height * view.width) / view.height;
+  return Math.max(160, Math.min(actual, stage.width, byHeight));
+}
+
 /** Smaller than this in image pixels is a stray click, not a shape. */
 const MIN_DRAG = 4;
 
@@ -96,6 +112,26 @@ export function ScreenshotEditor({
   const [cropDraft, setCropDraft] = useState<{ from: Point; to: Point }>();
   const [text, setText] = useState<TextDraft>();
   const [busy, setBusy] = useState(false);
+  const stageRef = useRef<HTMLDivElement>(null);
+  const [stage, setStage] = useState<{ width: number; height: number }>();
+
+  // The room the preview has: the stage's width, and the window below its top edge.
+  useEffect(() => {
+    const element = stageRef.current;
+    if (!element) return;
+    const measure = () => {
+      const { top } = element.getBoundingClientRect();
+      setStage({ width: element.clientWidth - STAGE_PADDING, height: window.innerHeight - top - STAGE_PADDING - FOOTER_SPACE });
+    };
+    measure();
+    const observer = new ResizeObserver(measure);
+    observer.observe(element);
+    window.addEventListener('resize', measure);
+    return () => {
+      observer.disconnect();
+      window.removeEventListener('resize', measure);
+    };
+  }, []);
 
   const doc = history.docs[history.index]!;
   const canUndo = history.index > 0;
@@ -259,6 +295,7 @@ export function ScreenshotEditor({
   };
 
   const scale = cssScale();
+  const displayWidth = view && stage ? fitWidth(view, stage) : undefined;
 
   return (
     <div className="space-y-3">
@@ -332,12 +369,12 @@ export function ScreenshotEditor({
         </div>
       </div>
 
-      <div className="bg-muted/50 flex justify-center overflow-auto rounded-lg border p-4">
+      <div ref={stageRef} className="bg-muted/50 flex justify-center overflow-auto rounded-lg border p-4">
         <div className="relative">
           <canvas
             ref={canvasRef}
             className={cn('block h-auto max-w-full shadow-md', tool === 'text' ? 'cursor-text' : 'cursor-crosshair')}
-            style={{ touchAction: 'none' }}
+            style={{ touchAction: 'none', width: displayWidth }}
             onPointerDown={onPointerDown}
             onPointerMove={onPointerMove}
             onPointerUp={onPointerUp}
