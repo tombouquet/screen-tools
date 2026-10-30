@@ -21,8 +21,9 @@ jobs:
           config-file: release-please-config.json
           manifest-file: .release-please-manifest.json
 
-  # Build the extension and attach the zip to the release. It's what users unzip and
-  # load unpacked, so they don't need Node or a clone.
+  # Build the extension for Chrome and Firefox and attach both zips to the release.
+  # The Chrome zip is what users unzip and load unpacked, so they don't need Node or a
+  # clone; the Firefox zip is the package to load or submit to addons.mozilla.org.
   upload-zip:
     needs: release-please
     if: needs.release-please.outputs.release_created == 'true'
@@ -38,10 +39,12 @@ jobs:
           cache: pnpm
       - run: pnpm install --frozen-lockfile
       - run: pnpm zip
-      - name: Upload zip
+      - run: pnpm zip:firefox
+      - name: Upload zips
         env:
           GH_TOKEN: ${{ github.token }}
           TAG: ${{ needs.release-please.outputs.tag_name }}
         run: |
           mv .output/screen-tools-*-chrome.zip "screen-tools-$TAG.zip"
-          gh release upload "$TAG" "screen-tools-$TAG.zip" --clobber
+          mv .output/screen-tools-*-firefox.zip "screen-tools-$TAG-firefox.zip"
+          gh release upload "$TAG" "screen-tools-$TAG.zip" "screen-tools-$TAG-firefox.zip" --clobber
