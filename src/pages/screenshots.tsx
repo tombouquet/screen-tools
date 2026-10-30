@@ -1,14 +1,46 @@
-import { ArrowLeft, Image as ImageIcon, Trash2 } from 'lucide-react';
+import { ArrowLeft, Copy, Download, Image as ImageIcon, Trash2, type LucideIcon } from 'lucide-react';
 import { useEffect, useState } from 'react';
+import { toast } from 'sonner';
 import { ConfirmDeleteDialog } from '@/components/confirm-dialog';
 import { ScreenshotEditor } from '@/components/screenshot-editor';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { navigate } from '@/hooks/use-route';
+import { downloadBlob } from '@/lib/download';
+import { screenshotFileName } from '@/lib/formats';
+import { getSettings } from '@/lib/settings';
 import { MAX_SCREENSHOTS, deleteScreenshot, getScreenshot, listScreenshots, updateScreenshot, type Screenshot } from '@/lib/db';
 
 const dateFormat = new Intl.DateTimeFormat(undefined, { dateStyle: 'medium', timeStyle: 'short' });
+
+/** Stored screenshots are PNG; JPG is re-encoded on the way out. */
+async function encode(blob: Blob, format: 'png' | 'jpg'): Promise<Blob> {
+  if (format === 'png') return blob;
+  const image = await createImageBitmap(blob);
+  const canvas = new OffscreenCanvas(image.width, image.height);
+  canvas.getContext('2d')!.drawImage(image, 0, 0);
+  image.close();
+  return canvas.convertToBlob({ type: 'image/jpeg', quality: 0.92 });
+}
+
+async function copyScreenshot(screenshot: Screenshot): Promise<boolean> {
+  try {
+    await navigator.clipboard.write([new ClipboardItem({ 'image/png': screenshot.blob })]);
+    toast.success('Copied to clipboard');
+    return true;
+  } catch (error) {
+    console.error(error);
+    toast.error("Couldn't copy the image", { description: 'Download it instead.' });
+    return false;
+  }
+}
+
+async function downloadScreenshot(screenshot: Screenshot): Promise<void> {
+  const format = getSettings().imageFormat;
+  downloadBlob(await encode(screenshot.blob, format), screenshotFileName(new Date(screenshot.date), format));
+}
 
 export function ScreenshotsPage({ id }: { id?: number }) {
   return id === undefined ? <ScreenshotList /> : <ScreenshotDetail id={id} />;
@@ -38,6 +70,10 @@ function ScreenshotList() {
     await deleteScreenshot(id);
     setScreenshots((list) => list?.filter((s) => s.id !== id));
   };
+  const markSaved = async (id: number) => {
+    await updateScreenshot(id, { saved: true });
+    setScreenshots((list) => list?.map((s) => (s.id === id ? { ...s, saved: true } : s)));
+  };
 
   return (
     <Card>
@@ -58,15 +94,19 @@ function ScreenshotList() {
           {screenshots?.map((screenshot) => (
             <li key={screenshot.id} className="group relative">
               <Thumbnail screenshot={screenshot} />
-              <Button
-                variant="destructive"
-                size="icon-sm"
-                aria-label="Delete"
-                className="absolute top-2 right-2 opacity-0 group-focus-within:opacity-100 group-hover:opacity-100"
-                onClick={() => setDeleting(screenshot.id)}
-              >
-                <Trash2 />
-              </Button>
+              <div className="absolute top-3 right-3 flex gap-1 opacity-0 transition-opacity group-focus-within:opacity-100 group-hover:opacity-100">
+                <QuickAction
+                  label="Copy"
+                  icon={Copy}
+                  onClick={() => void copyScreenshot(screenshot).then((ok) => ok && markSaved(screenshot.id))}
+                />
+                <QuickAction
+                  label={`Download ${getSettings().imageFormat.toUpperCase()}`}
+                  icon={Download}
+                  onClick={() => void downloadScreenshot(screenshot).then(() => markSaved(screenshot.id))}
+                />
+                <QuickAction label="Delete" icon={Trash2} destructive onClick={() => setDeleting(screenshot.id)} />
+              </div>
             </li>
           ))}
         </ul>
@@ -79,6 +119,37 @@ function ScreenshotList() {
         description="It's removed from Screenshots. Copies you downloaded stay in your downloads."
       />
     </Card>
+  );
+}
+
+function QuickAction({
+  label,
+  icon: Icon,
+  destructive,
+  onClick,
+}: {
+  label: string;
+  icon: LucideIcon;
+  destructive?: boolean;
+  onClick: () => void;
+}) {
+  return (
+    <Tooltip>
+      <TooltipTrigger
+        render={
+          <Button
+            variant="secondary"
+            size="icon-sm"
+            aria-label={label}
+            onClick={onClick}
+            className={destructive ? 'text-destructive hover:text-destructive shadow-sm' : 'shadow-sm'}
+          />
+        }
+      >
+        <Icon />
+      </TooltipTrigger>
+      <TooltipContent>{label}</TooltipContent>
+    </Tooltip>
   );
 }
 
