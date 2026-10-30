@@ -6,9 +6,9 @@ Reference: "Screen Recorder" by Erich Behrens (scre.io), v3.3.1, Chrome Web Stor
 
 | Original | This rebuild |
 | --- | --- |
-| Toolbar click opens an 800×690 popup window with the app | 960×780, centred over the current Chrome window; focuses the existing window if one is already open |
+| Toolbar click opens an 800×690 popup window with the app | Toolbar click opens a menu: record screen, camera or both (opens a 960×780 window centred over the current Chrome window, or focuses the open one, and starts), or take a screenshot |
 | Options page is the app's `#/settings` route | Same |
-| Permissions: `desktopCapture` only | Same |
+| Permissions: `desktopCapture` only | Adds `activeTab` and `scripting` for screenshots, plus `storage`, `notifications` and `alarms` |
 | Settings in `localStorage` | Same |
 | 51 languages | English only |
 
@@ -53,4 +53,5 @@ Reference: "Screen Recorder" by Erich Behrens (scre.io), v3.3.1, Chrome Web Stor
 - Save dialog (a setting, on by default): file name plus size, either the original or a compressed copy at one of four presets (High quality 1080p, Balanced 720p, Small 720p, Smallest 480p), each with an estimated file size. Compression runs in the browser with Mediabunny and WebCodecs and the stored recording is never replaced. Videos over 25 MB get a notice that opens the dialog with a smaller size picked. The original always saved `screen-capture.webm` with no dialog; with the setting off this saves the original straight away with a dated name.
 - Optimise video defaults to on (the original defaulted to off); writing the duration header is cheap.
 - "Optimise" uses `fix-webm-duration` (writes the missing duration header) instead of `ts-ebml` cue rebuilding. Applies to WebM only; MP4 doesn't need it.
+- Added: screenshots (selected area, visible area, full page) with an annotation editor and a list of the latest 10. Not in the original.
 - Dropped: cookie consent banner and "Just updated" changelog modal (no analytics here).

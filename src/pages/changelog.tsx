@@ -54,7 +54,7 @@ export function ChangelogPage() {
       <div className="space-y-1">
         <h2 className="text-xl font-semibold">Changelog</h2>
         <p className="text-muted-foreground text-sm">
-          What's new in each version of Screen Recorder. Downloads are on the{' '}
+          What's new in each version of Screen Tools. Downloads are on the{' '}
           <a href={RELEASES_URL} target="_blank" rel="noreferrer" className="underline underline-offset-4">
             releases page
           </a>

@@ -53,7 +53,7 @@ export function App() {
         <div className={cn('mx-auto flex min-h-screen flex-col gap-4 p-4', wide ? 'max-w-none' : 'max-w-4xl')}>
           <header className="flex items-center gap-3">
             <img src="/icon/48.png" alt="" className="size-7" />
-            <h1 className="font-semibold">Screen Recorder</h1>
+            <h1 className="font-semibold">Screen Tools</h1>
             <a
               href="#/changelog"
               className="text-muted-foreground hover:text-foreground text-xs underline-offset-4 hover:underline"
@@ -85,7 +85,7 @@ export function App() {
             <Page path={path} />
           </main>
           <footer className="text-muted-foreground text-center text-xs">
-            Free, no sign-up, no watermark. Recordings never leave your computer.
+            Free, no sign-up, no watermark. Recordings and screenshots never leave your computer.
           </footer>
         </div>
         <Toaster position="bottom-center" richColors closeButton />

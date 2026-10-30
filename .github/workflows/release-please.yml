@@ -43,5 +43,5 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           TAG: ${{ needs.release-please.outputs.tag_name }}
         run: |
-          mv .output/screen-recorder-*-chrome.zip "screen-recorder-$TAG.zip"
-          gh release upload "$TAG" "screen-recorder-$TAG.zip" --clobber
+          mv .output/screen-tools-*-chrome.zip "screen-tools-$TAG.zip"
+          gh release upload "$TAG" "screen-tools-$TAG.zip" --clobber

@@ -1,9 +1,11 @@
-# Screen Recorder
+# Screen Tools
 
-Chrome extension that records your screen, a window, a tab or your camera, with microphone and system audio. Free, no sign-up, no watermark, and recordings never leave your computer.
+Chrome extension that records your screen, a window, a tab or your camera, with microphone and system audio, and takes annotated screenshots. Free, no sign-up, no watermark, and nothing leaves your computer.
 
-A rebuild of the [Screen Recorder](https://chromewebstore.google.com/detail/screen-recorder/hniebljpgcogalllopnjokppmgbhaden) extension with the same features and a [shadcn/ui](https://ui.shadcn.com) design. See [docs/parity.md](docs/parity.md) for what matches the original and what's different.
+The recorder is a rebuild of the [Screen Recorder](https://chromewebstore.google.com/detail/screen-recorder/hniebljpgcogalllopnjokppmgbhaden) extension with the same features and a [shadcn/ui](https://ui.shadcn.com) design. See [docs/parity.md](docs/parity.md) for what matches the original and what's different.
 
+- **Toolbar popup:** one click to start recording the screen, the camera or both, or to take a screenshot.
+- **Screenshots:** capture a selected area, the visible area or the full page. Each opens in an editor with arrows, rectangles, ellipses, pen, highlighter, text, pixelate and crop, with undo. Download as PNG or JPG, or copy to the clipboard. The latest 10 are kept. Full page scrolls the window, so pages that scroll an inner panel (Gmail and many web apps) capture only what's visible. Chrome blocks screenshots of its own pages and the Web Store.
 - **Capture:** only screen (whole screen, a window or a Chrome tab), only camera, or screen with a camera overlay.
 - **Audio:** none, microphone, system audio, or both mixed.
 - **Camera overlay:** pick the corner, size, shape (rectangle, circle, squircle), zoom and mirroring.
@@ -15,12 +17,12 @@ A rebuild of the [Screen Recorder](https://chromewebstore.google.com/detail/scre
 
 ## Install
 
-1. Download `screen-recorder-vX.Y.Z.zip` from the [latest release](https://github.com/tombouquet/screen-recorder/releases/latest) and unzip it into a folder you'll keep.
+1. Download `screen-tools-vX.Y.Z.zip` from the [latest release](https://github.com/tombouquet/screen-tools/releases/latest) and unzip it into a folder you'll keep.
 2. Open `chrome://extensions`.
 3. Turn on **Developer mode** (top right).
 4. Click **Load unpacked** and pick the folder.
 
-Click the toolbar icon to open the recorder. The changelog opens in a new tab after installing.
+Click the toolbar icon to start a recording or take a screenshot. The changelog opens in a new tab after installing.
 
 ## Updating
 
@@ -52,6 +54,6 @@ Built with [WXT](https://wxt.dev), React, TypeScript, Tailwind CSS v4 and shadcn
 Releases are cut by [Release Please](https://github.com/googleapis/release-please) from [Conventional Commits](https://www.conventionalcommits.org/) on `main`. Don't bump the version by hand.
 
 1. Merge `feat:` / `fix:` PRs into `main`. Release Please keeps a "chore(main): release x.y.z" PR open that bumps `package.json` (WXT copies it into the manifest) and adds the new `CHANGELOG.md` section. `feat` bumps the minor version and `fix` the patch.
-2. Merge that PR when you want to ship. It tags `vX.Y.Z`, creates the GitHub release with the changelog as its notes, then builds the extension and attaches `screen-recorder-vX.Y.Z.zip`. Installed copies see the update at their next check.
+2. Merge that PR when you want to ship. It tags `vX.Y.Z`, creates the GitHub release with the changelog as its notes, then builds the extension and attaches `screen-tools-vX.Y.Z.zip`. Installed copies see the update at their next check.
 
 The first release will be v1.0.0.

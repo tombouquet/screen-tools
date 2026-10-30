@@ -8,12 +8,12 @@ export default defineConfig({
     plugins: [tailwindcss()],
   }),
   manifest: {
-    name: 'Screen Recorder',
+    name: 'Screen Tools',
     description:
-      'Record your screen, a window, a tab or your camera. Free, no sign-up, no watermark, unlimited recordings.',
+      'Record your screen, a window, a tab or your camera, and take annotated screenshots. Free, no sign-up, no watermark.',
     minimum_chrome_version: '116',
     permissions: ['desktopCapture', 'storage', 'notifications', 'alarms', 'activeTab', 'scripting'],
-    action: { default_title: 'Screen Recorder' },
+    action: { default_title: 'Screen Tools' },
     options_page: 'app.html#/settings',
   },
 });
