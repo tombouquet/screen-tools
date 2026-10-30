@@ -263,7 +263,7 @@ function LiveView({ session, paused, onStop }: { session?: RecordingSession; pau
   }, []);
 
   return (
-    <Card>
+    <Card className="my-auto">
       <CardHeader className="flex flex-row items-center justify-between gap-4">
         <div className="flex items-center gap-3">
           <span className="relative flex size-3">
@@ -330,7 +330,7 @@ function FinishedView({
   };
 
   return (
-    <Card>
+    <Card className="my-auto">
       <CardHeader className="flex flex-row items-center justify-between gap-4">
         <div className="space-y-1.5">
           <CardTitle>Recorded video</CardTitle>

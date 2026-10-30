@@ -76,7 +76,7 @@ function ScreenshotList() {
   };
 
   return (
-    <Card>
+    <Card className={screenshots?.length === 0 ? 'mx-auto my-auto w-full max-w-xl' : undefined}>
       <CardHeader>
         <CardTitle>Screenshots</CardTitle>
         <CardDescription>
@@ -187,7 +187,7 @@ function ScreenshotDetail({ id }: { id: number }) {
 
   if (screenshot === null) {
     return (
-      <Card>
+      <Card className="mx-auto my-auto w-full max-w-xl">
         <CardHeader>
           <CardTitle>Screenshot not found</CardTitle>
           <CardDescription>It may have been deleted, or replaced by newer screenshots.</CardDescription>

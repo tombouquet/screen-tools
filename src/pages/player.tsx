@@ -28,7 +28,7 @@ export function PlayerPage() {
   if (file) return <FileView file={file} onChange={setFile} onClose={() => setFile(undefined)} />;
 
   return (
-    <Card>
+    <Card className="mx-auto my-auto w-full max-w-xl">
       <CardHeader>
         <CardTitle>Video player</CardTitle>
         <CardDescription>Play your recordings, and make older WebM files seekable.</CardDescription>
@@ -87,7 +87,7 @@ function FileView({ file, onChange, onClose }: { file: File; onChange: (file: Fi
   };
 
   return (
-    <Card>
+    <Card className="my-auto">
       <CardHeader>
         <CardTitle className="truncate">{file.name}</CardTitle>
         <CardDescription>
