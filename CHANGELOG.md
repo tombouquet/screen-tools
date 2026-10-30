@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.1.0](https://github.com/tombouquet/screen-tools/compare/v1.0.1...v1.1.0) (2026-10-30)
+
+
+### Features
+
+* default to squircle camera and native screen resolution ([#5](https://github.com/tombouquet/screen-tools/issues/5)) ([d942cb6](https://github.com/tombouquet/screen-tools/commit/d942cb656ffa9fb291f2b5db5acdc1a976781589))
+
 ## [1.0.1](https://github.com/tombouquet/screen-tools/compare/v1.0.0...v1.0.1) (2026-10-30)
 
 
