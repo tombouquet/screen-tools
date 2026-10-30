@@ -3,7 +3,7 @@
   "description": "Record your screen, a window, a tab or your camera, and take screenshots. Free, no watermark.",
   "private": true,
   "license": "MIT",
-  "version": "1.3.0",
+  "version": "1.4.0",
   "type": "module",
   "scripts": {
     "dev": "wxt",
