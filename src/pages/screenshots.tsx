@@ -98,7 +98,9 @@ function ScreenshotList() {
                 <QuickAction
                   label="Copy"
                   icon={Copy}
-                  onClick={() => void copyScreenshot(screenshot).then((ok) => ok && markSaved(screenshot.id))}
+                  onClick={() => void copyScreenshot(screenshot).then(async (ok) => {
+                      if (ok) await markSaved(screenshot.id);
+                    })}
                 />
                 <QuickAction
                   label={`Download ${getSettings().imageFormat.toUpperCase()}`}
