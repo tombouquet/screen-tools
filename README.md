@@ -5,6 +5,7 @@ Chrome extension that records your screen, a window, a tab or your camera, with 
 The recorder is a rebuild of the [Screen Recorder](https://chromewebstore.google.com/detail/screen-recorder/hniebljpgcogalllopnjokppmgbhaden) extension with the same features and a [shadcn/ui](https://ui.shadcn.com) design. See [docs/parity.md](docs/parity.md) for what matches the original and what's different.
 
 - **Toolbar popup:** one click to start recording the screen, the camera or both, or to take a screenshot.
+- **Countdown and quick stop:** recording starts after a 3-second countdown, shown in the recorder and on the toolbar icon. While recording, the icon shows `REC`; click it to stop.
 - **Screenshots:** capture a selected area, the visible area or the full page. Each opens in an editor with arrows, rectangles, ellipses, pen, highlighter, text, pixelate and crop, with undo. Download as PNG or JPG, or copy to the clipboard. Saved at native resolution by default, or capped at 2560, 1920 or 1280 px wide in Settings. The latest 10 are kept. Full page scrolls the window, so pages that scroll an inner panel (Gmail and many web apps) capture only what's visible. Chrome blocks screenshots of its own pages and the Web Store.
 - **Capture:** only screen (whole screen, a window or a Chrome tab), only camera, or screen with a camera overlay.
 - **Audio:** none, microphone, system audio, or both mixed.
@@ -22,7 +23,7 @@ The recorder is a rebuild of the [Screen Recorder](https://chromewebstore.google
 3. Turn on **Developer mode** (top right).
 4. Click **Load unpacked** and pick the folder.
 
-Click the toolbar icon to start a recording or take a screenshot. The changelog opens in a new tab after installing.
+Click the toolbar icon to start a recording or take a screenshot, and click it again to stop a recording. The changelog opens in a new tab after installing.
 
 ## Updating
 

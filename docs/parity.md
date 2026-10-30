@@ -47,6 +47,7 @@ Reference: "Screen Recorder" by Erich Behrens (scre.io), v3.3.1, Chrome Web Stor
 ## Differences
 
 - Original had paid "premium" overlay customisation and a watermark on Screen + Camera. Everything here is free with no watermark.
+- Added: a 3-second countdown before recording starts (in the recorder and on the toolbar badge; Cancel stops it), and while recording the toolbar icon shows `REC` and a click on it stops the recording instead of opening the menu.
 - Added: MP4 output, the default (H.264 + AAC; falls back to WebM where Chrome can't record MP4), light/dark/system theme, recording timer, a toolbar badge and banner when a new GitHub release is out.
 - Screen resolution setting (native default, 4K, 1440p, 1080p, 720p, 480p); the original always captured at native size.
 - Camera overlay sizes are a share of the frame instead of fixed pixels, one step bigger than the original (at 1080p: small 480, medium 640, large 864 px wide), with a 24 px margin at 1080p. The square shape is a squircle, and is the default.
