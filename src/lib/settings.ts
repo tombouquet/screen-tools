@@ -6,6 +6,7 @@ export type CameraPosition = 'top-left' | 'top-right' | 'bottom-left' | 'bottom-
 export type CameraSize = 'small' | 'medium' | 'large';
 export type CameraShape = 'default' | 'circle' | 'squircle';
 export type OutputFormat = 'webm' | 'mp4';
+export type ImageFormat = 'png' | 'jpg';
 export type Theme = 'light' | 'dark' | 'system';
 export const FRAME_RATES = [15, 24, 30, 60] as const;
 export type FrameRate = (typeof FRAME_RATES)[number];
@@ -37,6 +38,15 @@ export const SCREEN_RESOLUTIONS = [
 ] as const;
 export type ScreenResolutionId = (typeof SCREEN_RESOLUTIONS)[number]['id'];
 
+/** Width caps on saved screenshots; native keeps every pixel the screen captured. */
+export const SCREENSHOT_QUALITIES = [
+  { id: 'native', label: 'Native (full resolution)', maxWidth: 0 },
+  { id: '2560', label: 'High (up to 2560 px wide)', maxWidth: 2560 },
+  { id: '1920', label: 'Medium (up to 1920 px wide)', maxWidth: 1920 },
+  { id: '1280', label: 'Small (up to 1280 px wide)', maxWidth: 1280 },
+] as const;
+export type ScreenshotQualityId = (typeof SCREENSHOT_QUALITIES)[number]['id'];
+
 export type CameraResolutionId = (typeof CAMERA_RESOLUTIONS)[number]['id'];
 
 export interface Settings {
@@ -58,6 +68,9 @@ export interface Settings {
   showSaveOptions: boolean;
   /** The size picked last time in the save dialog. */
   saveSize: SaveSize;
+  /** The screenshot download format picked last time. */
+  imageFormat: ImageFormat;
+  screenshotQuality: ScreenshotQualityId;
   theme: Theme;
 }
 
@@ -78,6 +91,8 @@ export const DEFAULT_SETTINGS: Settings = {
   optimizeVideo: true,
   showSaveOptions: true,
   saveSize: 'original',
+  imageFormat: 'png',
+  screenshotQuality: 'native',
   theme: 'system',
 };
 
@@ -110,6 +125,8 @@ function sanitize(raw: Partial<Record<keyof Settings | 'askFileName', unknown>>)
     // Was `askFileName` before the save dialog also offered sizes.
     showSaveOptions: typeof (raw.showSaveOptions ?? raw.askFileName) === 'boolean' ? Boolean(raw.showSaveOptions ?? raw.askFileName) : d.showSaveOptions,
     saveSize: oneOf(raw.saveSize, SAVE_SIZES, d.saveSize),
+    imageFormat: oneOf(raw.imageFormat, ['png', 'jpg'], d.imageFormat),
+    screenshotQuality: oneOf(raw.screenshotQuality, SCREENSHOT_QUALITIES.map((q) => q.id), d.screenshotQuality),
     theme: oneOf(raw.theme, ['light', 'dark', 'system'], d.theme),
   };
 }
@@ -133,6 +150,17 @@ export function updateSettings(patch: Partial<Settings>): void {
   window.dispatchEvent(new Event(CHANGE_EVENT));
 }
 
+/** Switches capture source. System audio needs a screen, so camera-only drops it. */
+export function setCaptureSource(captureSource: CaptureSource): void {
+  const { audioSource } = getSettings();
+  updateSettings({
+    captureSource,
+    ...(captureSource === 'camera' && audioSource.startsWith('system')
+      ? { audioSource: audioSource === 'system-microphone' ? 'microphone' : 'none' }
+      : {}),
+  });
+}
+
 export function subscribeSettings(listener: () => void): () => void {
   // `storage` fires when another extension page (e.g. the options tab) changes them.
   const onStorage = (event: StorageEvent) => {
@@ -150,6 +178,11 @@ export function subscribeSettings(listener: () => void): () => void {
 
 export function screenResolution(id: ScreenResolutionId) {
   return SCREEN_RESOLUTIONS.find((r) => r.id === id) ?? SCREEN_RESOLUTIONS[0];
+}
+
+/** 0 means no cap. */
+export function screenshotMaxWidth(id: ScreenshotQualityId): number {
+  return SCREENSHOT_QUALITIES.find((q) => q.id === id)?.maxWidth ?? 0;
 }
 
 export function cameraResolution(id: CameraResolutionId) {

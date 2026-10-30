@@ -1,7 +1,7 @@
 // Shared by the background worker and the app: where releases come from, and the
 // latest release as last seen by the update check (in chrome.storage.local).
 
-export const REPO = 'tombouquet/screen-recorder';
+export const REPO = 'tombouquet/screen-tools';
 export const RELEASES_URL = `https://github.com/${REPO}/releases`;
 export const UPDATE_KEY = 'update';
 

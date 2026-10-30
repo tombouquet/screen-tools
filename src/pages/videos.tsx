@@ -35,7 +35,7 @@ function VideoList() {
   }, []);
 
   return (
-    <Card>
+    <Card className={recordings?.length === 0 ? 'mx-auto my-auto w-full max-w-xl' : undefined}>
       <CardHeader>
         <CardTitle>Latest videos</CardTitle>
         <CardDescription>
@@ -96,7 +96,7 @@ function VideoDetail({ id }: { id: number }) {
 
   if (recording === null) {
     return (
-      <Card>
+      <Card className="mx-auto my-auto w-full max-w-xl">
         <CardHeader>
           <CardTitle>Video not found</CardTitle>
           <CardDescription>It may have been deleted, or replaced by newer recordings.</CardDescription>
@@ -154,7 +154,7 @@ function RecordingView({
   const canOptimize = isWebm(recording.mimeType) && !recording.seekable;
 
   return (
-    <Card>
+    <Card className="my-auto">
       <CardHeader className="flex flex-row items-center justify-between gap-4">
         <div className="space-y-1.5">
           <CardTitle>{dateFormat.format(new Date(recording.date))}</CardTitle>

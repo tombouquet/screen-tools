@@ -1,4 +1,4 @@
-import { Film, PlayCircle, Settings, Video } from 'lucide-react';
+import { Film, Image, PlayCircle, Settings, Video } from 'lucide-react';
 import { ThemeProvider } from '@/components/theme-provider';
 import { UpdateBanner } from '@/components/update-banner';
 import { Toaster } from '@/components/ui/sonner';
@@ -10,12 +10,14 @@ import { currentVersion } from '@/lib/version';
 import { ChangelogPage } from '@/pages/changelog';
 import { PlayerPage } from '@/pages/player';
 import { RecorderPage } from '@/pages/recorder';
+import { ScreenshotsPage } from '@/pages/screenshots';
 import { SettingsPage } from '@/pages/settings';
 import { VideosPage } from '@/pages/videos';
 
 const NAV = [
   { path: '/', label: 'Record', icon: Video },
   { path: '/videos', label: 'Latest videos', icon: Film },
+  { path: '/screenshots', label: 'Screenshots', icon: Image },
   { path: '/player', label: 'Player', icon: PlayCircle },
   { path: '/settings', label: 'Settings', icon: Settings },
 ];
@@ -23,6 +25,8 @@ const NAV = [
 function Page({ path }: { path: string }) {
   const video = path.match(/^\/videos(?:\/(\d+))?$/);
   if (video) return <VideosPage id={video[1] ? Number(video[1]) : undefined} />;
+  const screenshot = path.match(/^\/screenshots(?:\/(\d+))?$/);
+  if (screenshot) return <ScreenshotsPage id={screenshot[1] ? Number(screenshot[1]) : undefined} />;
   switch (path) {
     case '/player':
       return <PlayerPage />;
@@ -36,17 +40,20 @@ function Page({ path }: { path: string }) {
 }
 
 export function App() {
-  const path = useRoute();
+  // A route can carry a query, e.g. `/?start` from the toolbar popup.
+  const path = useRoute().split('?')[0]!;
   const busy = useBusy();
   const section = '/' + (path.split('/')[1] ?? '');
+  // The screenshot editor fills the tab exactly; it never scrolls the page.
+  const wide = /^\/screenshots\/\d+$/.test(path);
 
   return (
     <ThemeProvider>
       <TooltipProvider>
-        <div className="mx-auto flex min-h-screen max-w-4xl flex-col gap-4 p-4">
+        <div className={cn('mx-auto flex flex-col gap-4 p-4', wide ? 'h-screen max-w-none' : 'min-h-screen max-w-4xl')}>
           <header className="flex items-center gap-3">
             <img src="/icon/48.png" alt="" className="size-7" />
-            <h1 className="font-semibold">Screen Recorder</h1>
+            <h1 className="font-semibold">Screen Tools</h1>
             <a
               href="#/changelog"
               className="text-muted-foreground hover:text-foreground text-xs underline-offset-4 hover:underline"
@@ -74,11 +81,11 @@ export function App() {
             </nav>
           </header>
           <UpdateBanner />
-          <main className="flex-1">
+          <main className="flex min-h-0 flex-1 flex-col">
             <Page path={path} />
           </main>
           <footer className="text-muted-foreground text-center text-xs">
-            Free, no sign-up, no watermark. Recordings never leave your computer.
+            Free, no sign-up, no watermark. Recordings and screenshots never leave your computer.
           </footer>
         </div>
         <Toaster position="bottom-center" richColors closeButton />

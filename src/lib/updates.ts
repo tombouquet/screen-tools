@@ -30,7 +30,7 @@ export async function checkForUpdate(): Promise<void> {
     chrome.notifications.create(`${NOTIFICATION_PREFIX}${update.latestVersion}`, {
       type: 'basic',
       iconUrl: chrome.runtime.getURL('/icon/128.png'),
-      title: `Screen Recorder v${update.latestVersion} is out`,
+      title: `Screen Tools v${update.latestVersion} is out`,
       message: `You're on v${currentVersion()}. Click to see what's new.`,
     });
     update.notifiedVersion = update.latestVersion;
@@ -48,7 +48,7 @@ export async function applyBadge(update?: UpdateInfo): Promise<void> {
     await chrome.action.setBadgeTextColor({ color: '#ffffff' });
   }
   await chrome.action.setTitle({
-    title: newer ? `Screen Recorder: v${update!.latestVersion} available` : 'Screen Recorder',
+    title: newer ? `Screen Tools: v${update!.latestVersion} available` : 'Screen Tools',
   });
 }
 
