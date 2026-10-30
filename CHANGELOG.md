@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.3.0](https://github.com/tombouquet/screen-tools/compare/v1.2.0...v1.3.0) (2026-10-30)
+
+
+### Features
+
+* remove GitHub update checker for Chrome Web Store ([#9](https://github.com/tombouquet/screen-tools/issues/9)) ([2b9b3d8](https://github.com/tombouquet/screen-tools/commit/2b9b3d8ddb709b06f3cf81655a9edb56dd60d85f))
+
 ## [1.2.0](https://github.com/tombouquet/screen-tools/compare/v1.1.0...v1.2.0) (2026-10-30)
 
 
