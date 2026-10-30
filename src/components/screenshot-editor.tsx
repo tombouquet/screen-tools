@@ -45,8 +45,8 @@ import { updateSettings, type ImageFormat } from '@/lib/settings';
 import { cn } from '@/lib/utils';
 
 const TOOLS: { tool: Tool; label: string; icon: LucideIcon }[] = [
-  { tool: 'arrow', label: 'Arrow', icon: MoveUpRight },
   { tool: 'rect', label: 'Rectangle', icon: Square },
+  { tool: 'arrow', label: 'Arrow', icon: MoveUpRight },
   { tool: 'ellipse', label: 'Ellipse', icon: Circle },
   { tool: 'pen', label: 'Pen', icon: Pencil },
   { tool: 'highlighter', label: 'Highlighter', icon: Highlighter },
@@ -103,7 +103,7 @@ export function ScreenshotEditor({
   const [image, setImage] = useState<ImageBitmap>();
   const [history, setHistory] = useState<{ docs: Doc[]; index: number }>({ docs: [{ shapes: [] }], index: 0 });
   const [exported, setExported] = useState<Doc>();
-  const [tool, setTool] = useState<Tool>('arrow');
+  const [tool, setTool] = useState<Tool>('rect');
   const [color, setColor] = useState(COLORS[0]!);
   const [sizeStep, setSizeStep] = useState(1);
   const [draft, setDraft] = useState<Shape>();
