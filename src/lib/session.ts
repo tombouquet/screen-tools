@@ -5,6 +5,7 @@ import { Compositor, videoFor } from './compositor';
 import {
   addChunk,
   createRecording,
+  deleteRecording,
   getRecordingBlob,
   pruneRecordings,
   replaceRecordingBlob,
@@ -44,6 +45,7 @@ export class RecordingSession {
   private pausedAt = 0;
   private pausedMs = 0;
   private finished?: Promise<FinishedRecording>;
+  private released = false;
 
   private constructor(
     preview: MediaStream,
@@ -56,8 +58,11 @@ export class RecordingSession {
     this.cleanup = cleanup;
   }
 
-  /** Asks for the picked sources (shows the screen picker) and starts recording. */
-  static async start(settings: Settings, callbacks: SessionCallbacks): Promise<RecordingSession> {
+  /**
+   * Asks for the picked sources (shows the screen picker) and gets them ready. Nothing is
+   * recorded until `record()`, so a countdown can run in between; `cancel()` drops it.
+   */
+  static async open(settings: Settings, callbacks: SessionCallbacks): Promise<RecordingSession> {
     const cleanup: (() => void)[] = [];
     const stopStream = (stream: MediaStream) => cleanup.push(() => stream.getTracks().forEach((t) => t.stop()));
     const wantsScreen = settings.captureSource !== 'camera';
@@ -131,10 +136,9 @@ export class RecordingSession {
 
       const session = new RecordingSession(canvasStream, recorder, cleanup, callbacks);
       screenStream?.getVideoTracks()[0]?.addEventListener('ended', () => {
-        if (recorder.state === 'inactive') return;
+        if (session.released) return;
         callbacks.onEndedExternally();
       });
-      await session.begin(mimeType);
       return session;
     } catch (error) {
       cleanup.forEach((fn) => fn());
@@ -142,9 +146,16 @@ export class RecordingSession {
     }
   }
 
-  private async begin(mimeType: string): Promise<void> {
+  /** Starts recording. */
+  async record(): Promise<void> {
+    if (this.released || this.recordingId !== undefined) return;
     await pruneRecordings();
-    const id = await createRecording(mimeType);
+    const id = await createRecording(this.mimeType);
+    // Cancelled while the database was busy.
+    if (this.released) {
+      await deleteRecording(id);
+      return;
+    }
     this.recordingId = id;
     this.recorder.ondataavailable = (event) => {
       if (!event.data.size) return;
@@ -153,6 +164,23 @@ export class RecordingSession {
     this.recorder.start(CHUNK_MS);
     this.startedAt = performance.now();
     this.callbacks.onStateChange('recording');
+  }
+
+  /** Drops the session without keeping a recording, e.g. when the countdown is cancelled. */
+  cancel(): void {
+    if (this.released || this.finished) return;
+    if (this.recordingId === undefined) this.release();
+    else void this.stop(false).then(({ id }) => deleteRecording(id));
+  }
+
+  private release(): void {
+    this.released = true;
+    this.cleanup.forEach((fn) => fn());
+  }
+
+  /** True once `record()` has begun; before that, `cancel()` rather than `stop()`. */
+  get started(): boolean {
+    return this.recordingId !== undefined;
   }
 
   get mimeType(): string {
@@ -188,7 +216,7 @@ export class RecordingSession {
       }
     }).then(async () => {
       const durationMs = this.elapsedMs;
-      this.cleanup.forEach((fn) => fn());
+      this.release();
       this.callbacks.onStateChange('stopped');
       // The last chunk arrives just before `stop`; wait until everything is written.
       await this.writes;
