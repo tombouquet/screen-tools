@@ -1,5 +1,6 @@
 // User preferences, kept in the app page's localStorage like the original extension.
 // Every getter validates what's stored and falls back to the default.
+import { platform } from '@/platform';
 import { isFormatSupported } from './formats';
 
 export type CameraPosition = 'top-left' | 'top-right' | 'bottom-left' | 'bottom-right';
@@ -27,7 +28,7 @@ export const CAMERA_RESOLUTIONS = [
   { id: '360p', label: '360p', width: 480, height: 360 },
   { id: '240p', label: '240p', width: 352, height: 240 },
 ] as const;
-/** Caps on the screen capture; Chrome scales the source down to fit, keeping its shape. */
+/** Caps on the screen capture; the browser scales the source down to fit, keeping its shape. */
 export const SCREEN_RESOLUTIONS = [
   { id: 'native', label: 'Native (full size)', width: 0, height: 0 },
   { id: '2160p', label: '4K (2160p)', width: 3840, height: 2160 },
@@ -107,8 +108,8 @@ function sanitize(raw: Partial<Record<keyof Settings | 'askFileName', unknown>>)
   const zoom = Number(raw.cameraZoom);
   return {
     captureSource: oneOf(raw.captureSource, ['screen', 'camera', 'screen-camera'], d.captureSource),
-    audioSource: oneOf(raw.audioSource, ['none', 'microphone', 'system-microphone', 'system'], d.audioSource),
-    // MP4 is the default, but older Chrome versions can only record WebM.
+    audioSource: withoutSystemAudio(oneOf(raw.audioSource, ['none', 'microphone', 'system-microphone', 'system'], d.audioSource)),
+    // MP4 is the default, but older browser versions can only record WebM.
     format: isFormatSupported('mp4') ? oneOf(raw.format, ['webm', 'mp4'], d.format) : 'webm',
     frameRate: FRAME_RATES.includes(Number(raw.frameRate) as FrameRate) ? (Number(raw.frameRate) as FrameRate) : d.frameRate,
     screenResolution: oneOf(raw.screenResolution, SCREEN_RESOLUTIONS.map((r) => r.id), d.screenResolution),
@@ -129,6 +130,13 @@ function sanitize(raw: Partial<Record<keyof Settings | 'askFileName', unknown>>)
     screenshotQuality: oneOf(raw.screenshotQuality, SCREENSHOT_QUALITIES.map((q) => q.id), d.screenshotQuality),
     theme: oneOf(raw.theme, ['light', 'dark', 'system'], d.theme),
   };
+}
+
+/** Where the browser can't record system audio (Firefox), a stored choice that includes it drops that part. */
+function withoutSystemAudio(audioSource: AudioSource): AudioSource {
+  if (platform.capabilities.systemAudio) return audioSource;
+  if (audioSource === 'system-microphone') return 'microphone';
+  return audioSource === 'system' ? 'none' : audioSource;
 }
 
 let cache: Settings | undefined;

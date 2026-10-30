@@ -9,11 +9,10 @@ import { Progress } from '@/components/ui/progress';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import {
   CompressionCancelled,
-  PRESETS,
   analyzeVideo,
   compressedExtension,
   compressVideo,
-  planPreset,
+  planPresets,
   suggestedPreset,
   type CompressionJob,
   type PresetPlan,
@@ -23,6 +22,7 @@ import { downloadBlob } from '@/lib/download';
 import { cleanFileName, fileExtension, formatBytes, splitFileName } from '@/lib/formats';
 import { getSettings, updateSettings, type SaveSize } from '@/lib/settings';
 import { cn } from '@/lib/utils';
+import { platform } from '@/platform';
 
 interface SaveRequest {
   blob: Blob;
@@ -81,18 +81,20 @@ function SaveDialog({ request, onDone }: { request: SaveRequest; onDone: (saved:
   // Work out the presets' estimated sizes, then pick last time's size (or the suggestion).
   useEffect(() => {
     let stale = false;
-    analyzeVideo(request.blob).then(
-      (info) => {
-        if (stale) return;
-        const plans = PRESETS.map((preset) => planPreset(preset, info));
-        setSizes({ kind: 'ready', info, plans });
-        const remembered = getSettings().saveSize;
-        const usable = (id: SaveSize) => id === 'original' || plans.some((p) => p.preset.id === id && p.worthIt);
-        const initial = request.suggestCompression ? suggestedPreset(plans) : remembered;
-        setSize(initial && usable(initial) ? initial : 'original');
-      },
-      () => !stale && setSizes({ kind: 'unavailable' }),
-    );
+    analyzeVideo(request.blob)
+      .then(async (info) => ({ info, plans: await planPresets(info, request.mimeType) }))
+      .then(
+        ({ info, plans }) => {
+          if (stale) return;
+          setSizes({ kind: 'ready', info, plans });
+          const remembered = getSettings().saveSize;
+          const usable = (id: SaveSize) =>
+            id === 'original' || plans.some((p) => p.preset.id === id && p.worthIt && p.encodable);
+          const initial = request.suggestCompression ? suggestedPreset(plans) : remembered;
+          setSize(initial && usable(initial) ? initial : 'original');
+        },
+        () => !stale && setSizes({ kind: 'unavailable' }),
+      );
     return () => {
       stale = true;
       job.current?.cancel();
@@ -208,21 +210,28 @@ function SaveDialog({ request, onDone }: { request: SaveRequest; onDone: (saved:
                 {sizes.kind === 'unavailable' && (
                   <p className="text-muted-foreground px-1 py-2 text-xs">This file can't be compressed.</p>
                 )}
+                {sizes.kind === 'ready' && !sizes.plans.some((p) => p.encodable) && (
+                  <p className="text-muted-foreground px-1 py-2 text-xs">
+                    {platform.name} can't encode this video on this computer, so only the original can be saved.
+                  </p>
+                )}
                 {sizes.kind === 'ready' &&
-                  sizes.plans.map((plan) => (
-                    <SizeOption
-                      key={plan.preset.id}
-                      value={plan.preset.id}
-                      label={plan.preset.label}
-                      description={`${plan.preset.description} ${plan.width}×${plan.height}.`}
-                      selected={size === plan.preset.id}
-                      disabled={!plan.worthIt}
-                      size={plan.worthIt ? `≈ ${formatBytes(plan.estimatedBytes)}` : 'No smaller'}
-                      badge={plan.worthIt ? `${percentSmaller(sizes.info.size, plan.estimatedBytes)}% smaller` : undefined}
-                    />
-                  ))}
+                  sizes.plans
+                    .filter((plan) => plan.encodable)
+                    .map((plan) => (
+                      <SizeOption
+                        key={plan.preset.id}
+                        value={plan.preset.id}
+                        label={plan.preset.label}
+                        description={`${plan.preset.description} ${plan.width}×${plan.height}.`}
+                        selected={size === plan.preset.id}
+                        disabled={!plan.worthIt}
+                        size={plan.worthIt ? `≈ ${formatBytes(plan.estimatedBytes)}` : 'No smaller'}
+                        badge={plan.worthIt ? `${percentSmaller(sizes.info.size, plan.estimatedBytes)}% smaller` : undefined}
+                      />
+                    ))}
               </RadioGroup>
-              {sizes.kind === 'ready' && (
+              {sizes.kind === 'ready' && sizes.plans.some((p) => p.encodable) && (
                 <p className="text-muted-foreground text-xs">
                   Smaller sizes are estimates. Recordings with little movement usually come out smaller.
                 </p>

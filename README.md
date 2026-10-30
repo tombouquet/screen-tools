@@ -1,6 +1,6 @@
 # Screen Tools
 
-Chrome extension that records your screen, a window, a tab or your camera, with microphone and system audio, and takes annotated screenshots. Free, no sign-up, no watermark, and nothing leaves your computer.
+Chrome and Firefox extension that records your screen, a window, a tab or your camera, with microphone and system audio, and takes annotated screenshots. Free, no sign-up, no watermark, and nothing leaves your computer. Tabs and system audio are Chrome only; see [Firefox](docs/parity.md#firefox) for the other differences.
 
 The recorder is a rebuild of the [Screen Recorder](https://chromewebstore.google.com/detail/screen-recorder/hniebljpgcogalllopnjokppmgbhaden) extension with the same features and a [shadcn/ui](https://ui.shadcn.com) design. See [docs/parity.md](docs/parity.md) for what matches the original and what's different.
 
@@ -44,6 +44,18 @@ pnpm zip       # zipped build in .output/
 ```
 
 To try a production build, load `.output/chrome-mv3` with **Load unpacked**. `node scripts/make-icons.mjs` redraws the icons in `public/icon/`.
+
+### Firefox
+
+Needs Firefox 140 or later.
+
+```sh
+pnpm dev:firefox    # opens Firefox with the extension loaded and hot reload
+pnpm build:firefox  # production build in .output/firefox-mv3
+pnpm zip:firefox    # zipped build plus the sources zip addons.mozilla.org asks for, in .output/
+```
+
+To try a production build, open `about:debugging#/runtime/this-firefox`, click **Load Temporary Add-on…** and pick `.output/firefox-mv3/manifest.json`. Firefox removes temporary add-ons when it closes.
 
 The Chrome Web Store images are built from screenshots of the extension on made-up data: `pnpm screenshots` captures them and `pnpm showcase` composes the upload-ready images in `out/showcase/`. See [Listing screenshots](docs/guides/listing-screenshots.md) and [Listing image style](docs/reference/listing-image-style.md).
 
