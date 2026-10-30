@@ -2,7 +2,7 @@ import { Fragment } from 'react';
 import changelog from '../../CHANGELOG.md?raw';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { RELEASES_URL, currentVersion } from '@/lib/version';
+import { currentVersion } from '@/lib/version';
 import { cn } from '@/lib/utils';
 
 interface Release {
@@ -54,11 +54,7 @@ export function ChangelogPage() {
       <div className="space-y-1">
         <h2 className="text-xl font-semibold">Changelog</h2>
         <p className="text-muted-foreground text-sm">
-          What's new in each version of Screen Tools. Downloads are on the{' '}
-          <a href={RELEASES_URL} target="_blank" rel="noreferrer" className="underline underline-offset-4">
-            releases page
-          </a>
-          .
+          What's new in each version of Screen Tools.
         </p>
       </div>
       {releases.length === 0 && <p className="text-muted-foreground text-sm">No releases yet. You're on v{current}.</p>}

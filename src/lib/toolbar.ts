@@ -1,8 +1,6 @@
 // The toolbar icon while a recording runs: the badge shows the countdown, then REC (or
 // a pause sign), and the popup is switched off so a click on the icon reaches the
 // background worker, which asks the recorder to stop.
-import { applyBadge } from './updates';
-
 const RECORD_RED = '#dc2626';
 const PAUSED_GREY = '#6b7280';
 
@@ -31,8 +29,13 @@ export function showRecording(paused: boolean): Promise<void> {
     : show('REC', RECORD_RED, 'Screen Tools: recording. Click to stop');
 }
 
-/** Back to the menu popup, and the update badge if there is one. */
+/** Clears the badge and title. */
+export async function clearBadge(): Promise<void> {
+  await Promise.all([chrome.action.setBadgeText({ text: '' }), chrome.action.setTitle({ title: 'Screen Tools' })]);
+}
+
+/** Back to the menu popup with a clear badge. */
 export async function resetToolbar(): Promise<void> {
   await chrome.action.setPopup({ popup: defaultPopup() });
-  await applyBadge();
+  await clearBadge();
 }

@@ -2,7 +2,6 @@
 export type ScreenshotMode = 'area' | 'visible' | 'full';
 
 export type AppMessage =
-  | { type: 'checkForUpdate' }
   /** Opens the app window (or focuses it) at a route. */
   | { type: 'openApp'; route: string }
   /** `maxWidth` 0 keeps the native size. The worker can't read settings (they're in page localStorage). */

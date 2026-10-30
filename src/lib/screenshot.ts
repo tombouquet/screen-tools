@@ -5,7 +5,7 @@ import { addScreenshot } from './db';
 import { appUrl } from './download';
 import type { ScreenshotMode } from './messages';
 import { hideFixedElements, preparePage, restorePage, scrollPage, selectArea, type AreaSelection } from './page-scripts';
-import { applyBadge } from './updates';
+import { clearBadge } from './toolbar';
 
 // Chrome allows two captureVisibleTab calls a second.
 const CAPTURE_GAP_MS = 550;
@@ -103,7 +103,7 @@ async function captureFullPage(tabId: number, windowId: number): Promise<Blob> {
     return await canvas!.convertToBlob({ type: 'image/png' });
   } finally {
     await run(restorePage, [page.scrollX, page.scrollY]).catch(() => undefined);
-    await applyBadge();
+    await clearBadge();
   }
 }
 
