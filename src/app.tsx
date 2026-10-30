@@ -44,13 +44,13 @@ export function App() {
   const path = useRoute().split('?')[0]!;
   const busy = useBusy();
   const section = '/' + (path.split('/')[1] ?? '');
-  // The screenshot editor uses the whole width of the tab.
+  // The screenshot editor fills the tab exactly; it never scrolls the page.
   const wide = /^\/screenshots\/\d+$/.test(path);
 
   return (
     <ThemeProvider>
       <TooltipProvider>
-        <div className={cn('mx-auto flex min-h-screen flex-col gap-4 p-4', wide ? 'max-w-none' : 'max-w-4xl')}>
+        <div className={cn('mx-auto flex flex-col gap-4 p-4', wide ? 'h-screen max-w-none' : 'min-h-screen max-w-4xl')}>
           <header className="flex items-center gap-3">
             <img src="/icon/48.png" alt="" className="size-7" />
             <h1 className="font-semibold">Screen Tools</h1>
@@ -81,7 +81,7 @@ export function App() {
             </nav>
           </header>
           <UpdateBanner />
-          <main className="flex flex-1 flex-col">
+          <main className="flex min-h-0 flex-1 flex-col">
             <Page path={path} />
           </main>
           <footer className="text-muted-foreground text-center text-xs">

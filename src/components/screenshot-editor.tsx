@@ -63,20 +63,18 @@ const FORMAT_OPTIONS: { value: ImageFormat; label: string }[] = [
 const mimeOf = (format: ImageFormat) => (format === 'png' ? 'image/png' : 'image/jpeg');
 const isMod = (event: KeyboardEvent) => event.metaKey || event.ctrlKey;
 
-// The stage's p-4 on both sides, and room for the page footer under it.
+// The stage's p-4 on both sides.
 const STAGE_PADDING = 32;
-const FOOTER_SPACE = 40;
 /** Taller than this (height ÷ width) is a full-page shot: fit the width and scroll. */
 const TALL_RATIO = 2;
 
 /**
- * The preview's CSS width; its height follows, keeping the aspect ratio. It's never
- * bigger than the captured page looked on screen, and shrinks to fit the window.
+ * The preview's CSS width: as big as fits the stage. Its height follows, keeping the
+ * aspect ratio. Rounded down so a fraction of a pixel can't add a scrollbar.
  */
 function fitWidth(view: Rect, stage: { width: number; height: number }): number {
-  const actual = view.width / (window.devicePixelRatio || 1);
   const byHeight = view.height / view.width > TALL_RATIO ? Infinity : (stage.height * view.width) / view.height;
-  return Math.max(160, Math.min(actual, stage.width, byHeight));
+  return Math.max(1, Math.floor(Math.min(stage.width, byHeight)));
 }
 
 /** Smaller than this in image pixels is a stray click, not a shape. */
@@ -115,22 +113,15 @@ export function ScreenshotEditor({
   const stageRef = useRef<HTMLDivElement>(null);
   const [stage, setStage] = useState<{ width: number; height: number }>();
 
-  // The room the preview has: the stage's width, and the window below its top edge.
+  // The room the preview has: the stage fills the rest of the tab, less its padding.
   useEffect(() => {
     const element = stageRef.current;
     if (!element) return;
-    const measure = () => {
-      const { top } = element.getBoundingClientRect();
-      setStage({ width: element.clientWidth - STAGE_PADDING, height: window.innerHeight - top - STAGE_PADDING - FOOTER_SPACE });
-    };
-    measure();
-    const observer = new ResizeObserver(measure);
+    const observer = new ResizeObserver(() =>
+      setStage({ width: element.clientWidth - STAGE_PADDING, height: element.clientHeight - STAGE_PADDING }),
+    );
     observer.observe(element);
-    window.addEventListener('resize', measure);
-    return () => {
-      observer.disconnect();
-      window.removeEventListener('resize', measure);
-    };
+    return () => observer.disconnect();
   }, []);
 
   const doc = history.docs[history.index]!;
@@ -298,7 +289,7 @@ export function ScreenshotEditor({
   const displayWidth = view && stage ? fitWidth(view, stage) : undefined;
 
   return (
-    <div className="space-y-3">
+    <div className="flex min-h-0 flex-1 flex-col gap-3">
       <div className="bg-card flex flex-wrap items-center gap-2 rounded-lg border p-2">
         <ToggleGroup aria-label="Tool" value={[tool]} onValueChange={(next) => next[0] && setTool(next[0] as Tool)} spacing={1}>
           {TOOLS.map(({ tool: value, label, icon: Icon }) => (
@@ -369,8 +360,9 @@ export function ScreenshotEditor({
         </div>
       </div>
 
-      <div ref={stageRef} className="bg-muted/50 flex justify-center overflow-auto rounded-lg border p-4">
-        <div className="relative">
+      <div ref={stageRef} className="bg-muted/50 flex min-h-0 flex-1 overflow-auto rounded-lg border p-4">
+        {/* m-auto centres it, and unlike centring the flex items it can still scroll to the top. */}
+        <div className="relative m-auto">
           <canvas
             ref={canvasRef}
             className={cn('block h-auto max-w-full shadow-md', tool === 'text' ? 'cursor-text' : 'cursor-crosshair')}
