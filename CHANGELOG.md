@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.4.1](https://github.com/tombouquet/screen-tools/compare/v1.4.0...v1.4.1) (2026-10-30)
+
+
+### Bug Fixes
+
+* stop blocked screenshot pages showing as extension errors ([#13](https://github.com/tombouquet/screen-tools/issues/13)) ([01fe707](https://github.com/tombouquet/screen-tools/commit/01fe7074285d06df997750c0769c5ee795022887))
+
 ## [1.4.0](https://github.com/tombouquet/screen-tools/compare/v1.3.0...v1.4.0) (2026-10-30)
 
 
