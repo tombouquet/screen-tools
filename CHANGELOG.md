@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.0.1](https://github.com/tombouquet/screen-tools/compare/v1.0.0...v1.0.1) (2026-10-30)
+
+
+### Bug Fixes
+
+* ship release with extension zip ([#3](https://github.com/tombouquet/screen-tools/issues/3)) ([0d9a5d8](https://github.com/tombouquet/screen-tools/commit/0d9a5d891ad7b52f980112576c3390ebbb44018d))
+
 ## 1.0.0 (2026-10-30)
 
 
