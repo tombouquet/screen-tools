@@ -81,7 +81,7 @@ export function App() {
             </nav>
           </header>
           <UpdateBanner />
-          <main className="flex-1">
+          <main className="flex flex-1 flex-col">
             <Page path={path} />
           </main>
           <footer className="text-muted-foreground text-center text-xs">

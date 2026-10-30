@@ -1,18 +1,11 @@
 // The toolbar popup: one click to start a recording or take a screenshot.
-import { AppWindow, Camera, createLucideIcon, Eye, Film, Image, Monitor, ScrollText, Settings, SquareDashedMousePointer, type LucideIcon } from 'lucide-react';
+import { AppWindow, Camera, Eye, Film, Image, Monitor, ScrollText, Settings, SquareDashedMousePointer, type LucideIcon } from 'lucide-react';
+import { MonitorCamera } from '@/components/icons';
 import { ThemeProvider } from '@/components/theme-provider';
 import { Button } from '@/components/ui/button';
 import { openAppTab } from '@/lib/download';
 import type { AppMessage, ScreenshotMode } from '@/lib/messages';
 import type { CaptureSource } from '@/lib/settings';
-
-/** A monitor with the camera bubble in its corner, like the overlay in a recording. */
-const MonitorCamera = createLucideIcon('monitor-camera', [
-  ['rect', { width: '20', height: '14', x: '2', y: '3', rx: '2', key: 'screen' }],
-  ['path', { d: 'M8 21h8', key: 'base' }],
-  ['path', { d: 'M12 17v4', key: 'stand' }],
-  ['circle', { cx: '16.5', cy: '11.5', r: '2.5', key: 'camera' }],
-]);
 
 const RECORD: { source: CaptureSource; label: string; icon: LucideIcon }[] = [
   { source: 'screen', label: 'Screen', icon: Monitor },

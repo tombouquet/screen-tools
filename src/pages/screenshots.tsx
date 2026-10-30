@@ -86,11 +86,11 @@ function Thumbnail({ screenshot }: { screenshot: Screenshot }) {
   const url = useObjectUrl(screenshot.blob);
   return (
     <button
-      className="hover:bg-accent flex w-full flex-col gap-2 rounded-lg border p-2 text-left"
+      className="hover:bg-accent flex w-full flex-col gap-2 rounded-lg border p-2 text-left select-none"
       onClick={() => navigate(`/screenshots/${screenshot.id}`)}
     >
       <span className="bg-muted flex aspect-video w-full items-center justify-center overflow-hidden rounded-md">
-        {url && <img src={url} alt="" className="max-h-full max-w-full object-contain" />}
+        {url && <img src={url} alt="" draggable={false} className="max-h-full max-w-full object-contain select-none" />}
       </span>
       <span className="min-w-0 px-1">
         <span className="block truncate text-sm font-medium">{screenshot.title || 'Screenshot'}</span>
