@@ -1,13 +1,15 @@
 // Takes screenshots of the current tab, in the background worker. The toolbar popup
 // grants activeTab for that tab, which covers captureVisibleTab and injecting the area
 // picker and scroll helpers. Each shot is stored, then opened in the editor.
+import { browser } from 'wxt/browser';
+import { platform } from '@/platform';
 import { addScreenshot } from './db';
 import { appUrl } from './download';
 import type { ScreenshotMode } from './messages';
 import { hideFixedElements, preparePage, restorePage, scrollPage, selectArea, type AreaSelection } from './page-scripts';
 import { clearBadge } from './toolbar';
 
-// Chrome allows two captureVisibleTab calls a second.
+// Chrome allows two captureVisibleTab calls a second; Firefox has no such limit, so the gap is harmless there.
 const CAPTURE_GAP_MS = 550;
 // Canvas limits: 32 767 px a side and about 268 million pixels.
 const MAX_SIDE = 32_767;
@@ -17,7 +19,7 @@ const MAX_FULL_PAGE_STEPS = 100;
 
 export async function takeScreenshot(mode: ScreenshotMode, tabId: number, windowId: number, maxWidth: number): Promise<void> {
   try {
-    const tab = await chrome.tabs.get(tabId);
+    const tab = await browser.tabs.get(tabId);
     const captured =
       mode === 'visible'
         ? await captureVisible(windowId)
@@ -28,36 +30,37 @@ export async function takeScreenshot(mode: ScreenshotMode, tabId: number, window
     const blob = await limitWidth(captured, maxWidth);
     const { width, height } = await createImageBitmap(blob);
     const id = await addScreenshot({ blob, original: blob, width, height, title: tab.title, url: tab.url });
-    await chrome.tabs.create({ url: appUrl(`/screenshots/${id}`), index: tab.index + 1, openerTabId: tabId });
+    await browser.tabs.create({ url: appUrl(`/screenshots/${id}`), index: tab.index + 1, openerTabId: tabId });
   } catch (error) {
-    // Chrome refusing a page is expected; console.error would list it on chrome://extensions.
+    // The browser refusing a page is expected; console.error would list it on Chrome's extensions page.
     if (isBlockedPage(error)) console.warn(error);
     else console.error(error);
-    chrome.notifications.create({
+    browser.notifications.create({
       type: 'basic',
-      iconUrl: chrome.runtime.getURL('/icon/128.png'),
+      iconUrl: browser.runtime.getURL('/icon/128.png'),
       title: "Can't capture this page",
-      message: 'Chrome blocks screenshots of its own pages, the Web Store and some others. Try another tab.',
+      message: platform.copy.blockedScreenshotMessage,
     });
   }
 }
 
 /**
- * Chrome's errors for pages extensions can't touch: its own pages, the Web Store
+ * The browser's errors for pages extensions can't touch: its own pages, the Web Store
  * ("The extensions gallery cannot be scripted.") and pages without host access.
+ * Firefox says "Missing host permission for the tab" or "Missing activeTab permission".
  */
 function isBlockedPage(error: unknown): boolean {
   const message = error instanceof Error ? error.message : String(error);
-  return /cannot be scripted|cannot access|permission is required|not in effect/i.test(message);
+  return /cannot be scripted|cannot access|permission is required|not in effect|missing (host|activeTab) permission/i.test(message);
 }
 
 async function captureVisible(windowId: number): Promise<Blob> {
-  const dataUrl = await chrome.tabs.captureVisibleTab(windowId, { format: 'png' });
+  const dataUrl = await browser.tabs.captureVisibleTab(windowId, { format: 'png' });
   return (await fetch(dataUrl)).blob();
 }
 
 async function captureArea(tabId: number, windowId: number): Promise<Blob | undefined> {
-  const [injection] = await chrome.scripting.executeScript({ target: { tabId }, func: selectArea });
+  const [injection] = await browser.scripting.executeScript({ target: { tabId }, func: selectArea });
   const selection = injection?.result as AreaSelection | null | undefined;
   if (!selection) return undefined;
   const image = await createImageBitmap(await captureVisible(windowId));
@@ -74,7 +77,7 @@ async function captureArea(tabId: number, windowId: number): Promise<Blob | unde
 
 async function captureFullPage(tabId: number, windowId: number): Promise<Blob> {
   const run = async <T>(func: (...args: never[]) => T | Promise<T>, args: unknown[] = []): Promise<T> => {
-    const [injection] = await chrome.scripting.executeScript({
+    const [injection] = await browser.scripting.executeScript({
       target: { tabId },
       func: func as () => T,
       args: args as [],
@@ -91,7 +94,7 @@ async function captureFullPage(tabId: number, windowId: number): Promise<Blob> {
     let lastCapture = 0;
 
     for (let step = 0; step < stepCount; step++) {
-      await chrome.action.setBadgeText({ text: `${step + 1}/${stepCount}` });
+      await browser.action.setBadgeText({ text: `${step + 1}/${stepCount}` });
       // Clamp the last step to the bottom; the browser would anyway, and we draw where it lands.
       const y = await run(scrollPage, [Math.min(step * page.viewportHeight, totalHeight - page.viewportHeight)]);
       if (step === 1) await run(hideFixedElements);

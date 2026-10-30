@@ -1,6 +1,7 @@
 // One recording: gathers the streams the user picked, composites them, and records
 // the result with MediaRecorder. Chunks go to IndexedDB as they arrive (autosave).
-import { AudioMixer, CaptureError, captureCamera, captureMicrophone, captureScreen } from './capture';
+import { platform } from '@/platform';
+import { AudioMixer, CaptureError, captureCamera, captureMicrophone } from './capture';
 import { Compositor, videoFor } from './compositor';
 import {
   addChunk,
@@ -31,7 +32,7 @@ export interface SessionCallbacks {
   /** Something optional failed (e.g. no system audio); recording carries on without it. */
   onWarning(error: CaptureError): void;
   onStateChange(state: SessionState): void;
-  /** The user ended it outside the app, via Chrome's "Stop sharing" bar. */
+  /** The user ended it outside the app, via the browser's "Stop sharing" control. */
   onEndedExternally(): void;
 }
 
@@ -102,7 +103,7 @@ export class RecordingSession {
       let compositor: Compositor;
       let screenStream: MediaStream | undefined;
       if (wantsScreen) {
-        const screenCapture = await captureScreen(wantsSystem, settings.frameRate, screenResolution(settings.screenResolution));
+        const screenCapture = await platform.screen.captureScreen(wantsSystem, settings.frameRate, screenResolution(settings.screenResolution));
         screenStream = screenCapture.stream;
         stopStream(screenStream);
         if (wantsSystem && !screenCapture.hasAudio) {

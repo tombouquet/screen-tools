@@ -1,5 +1,6 @@
 import { CheckCircle2, ExternalLink, Monitor, Moon, ShieldAlert, Sun, XCircle } from 'lucide-react';
 import { useCallback, useEffect, useState } from 'react';
+import { browser } from 'wxt/browser';
 import { useTheme } from '@/components/theme-provider';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -247,10 +248,10 @@ function PermissionCard({ permission, onRetry }: { permission?: PermissionCheck;
           ? { icon: XCircle, text: 'Permission denied', tone: 'text-destructive' }
           : { icon: XCircle, text: `Error getting media stream: ${permission.error}`, tone: 'text-destructive' };
   const Icon = status.icon;
-  // Chrome doesn't always show permission prompts in the popup window; a normal tab can.
+  // The browser doesn't always show permission prompts in the popup window; a normal tab can.
   const [inPopupWindow, setInPopupWindow] = useState(false);
   useEffect(() => {
-    chrome.windows.getCurrent((w) => setInPopupWindow(w.type === 'popup'));
+    void browser.windows.getCurrent().then((w) => setInPopupWindow(w.type === 'popup'));
   }, []);
   return (
     <Card>

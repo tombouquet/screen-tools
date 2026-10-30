@@ -1,5 +1,6 @@
 // The toolbar popup: one click to start a recording or take a screenshot.
 import { AppWindow, Camera, Eye, Film, Image, Monitor, ScrollText, Settings, SquareDashedMousePointer, type LucideIcon } from 'lucide-react';
+import { browser } from 'wxt/browser';
 import { MonitorCamera } from '@/components/icons';
 import { ThemeProvider } from '@/components/theme-provider';
 import { Button } from '@/components/ui/button';
@@ -28,14 +29,14 @@ const LINKS: { route: string; label: string; icon: LucideIcon }[] = [
 /** Hands the job to the background worker, which outlives this popup. */
 async function send(message: AppMessage): Promise<void> {
   try {
-    await chrome.runtime.sendMessage(message);
+    await browser.runtime.sendMessage(message);
   } finally {
     window.close();
   }
 }
 
 async function screenshot(mode: ScreenshotMode): Promise<void> {
-  const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+  const [tab] = await browser.tabs.query({ active: true, currentWindow: true });
   if (tab?.id === undefined) return;
   const maxWidth = screenshotMaxWidth(getSettings().screenshotQuality);
   await send({ type: 'screenshot', mode, tabId: tab.id, windowId: tab.windowId, maxWidth });
