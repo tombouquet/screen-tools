@@ -23,13 +23,13 @@ The recorder is a rebuild of the [Screen Recorder](https://chromewebstore.google
 3. Turn on **Developer mode** (top right).
 4. Click **Load unpacked** and pick the folder.
 
-Click the toolbar icon to start a recording or take a screenshot, and click it again to stop a recording. The changelog opens in a new tab after installing.
+Click the toolbar icon to start a recording or take a screenshot, and click it again to stop a recording. A home page with a quick start and what's new opens in a new tab after installing.
 
 ## Updating
 
 Chrome doesn't update unpacked extensions on its own. To update, download the new zip from the [latest release](https://github.com/tombouquet/screen-tools/releases/latest), unzip it over your current folder, and click the reload button on `chrome://extensions`.
 
-The changelog opens after every version change. You can also open it from the version number next to the title.
+The home page opens after every version change, with what's new in that version. You can open it from the logo, and the full changelog from the version number next to the title.
 
 ## Development
 
