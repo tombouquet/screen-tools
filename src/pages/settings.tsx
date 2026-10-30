@@ -21,6 +21,7 @@ import {
   CAMERA_SHAPES,
   CAMERA_SIZES,
   SCREEN_RESOLUTIONS,
+  SCREENSHOT_QUALITIES,
   FRAME_RATES,
   updateSettings,
   type CameraPosition,
@@ -29,6 +30,7 @@ import {
   type CameraSize,
   type FrameRate,
   type ScreenResolutionId,
+  type ScreenshotQualityId,
   type Settings,
   type Theme,
 } from '@/lib/settings';
@@ -42,6 +44,11 @@ const POSITION_LABELS: Record<CameraPosition, string> = {
 const CAMERA_POSITION_OPTIONS = CAMERA_POSITIONS.map((p) => ({ value: p, label: POSITION_LABELS[p] }));
 const CAMERA_RESOLUTION_OPTIONS = CAMERA_RESOLUTIONS.map((r) => ({ value: r.id as CameraResolutionId, label: r.label }));
 const SCREEN_RESOLUTION_OPTIONS = SCREEN_RESOLUTIONS.map((r) => ({ value: r.id as ScreenResolutionId, label: r.label }));
+const SCREENSHOT_QUALITY_OPTIONS = SCREENSHOT_QUALITIES.map((q) => ({ value: q.id as ScreenshotQualityId, label: q.label }));
+const IMAGE_FORMAT_OPTIONS = [
+  { value: 'png' as const, label: 'PNG' },
+  { value: 'jpg' as const, label: 'JPG' },
+];
 const FRAME_RATE_OPTIONS = FRAME_RATES.map((fps) => ({
   value: String(fps),
   label: fps === 60 ? '60 fps (smoother, bigger files)' : `${fps} fps`,
@@ -194,6 +201,31 @@ export function SettingsPage() {
               devices={devices.microphones}
               value={settings.microphoneId}
               onChange={(microphoneId) => updateSettings({ microphoneId })}
+            />
+          </Field>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Screenshots</CardTitle>
+          <CardDescription>Native keeps every pixel of your screen; on a high-density display that's twice the page size.</CardDescription>
+        </CardHeader>
+        <CardContent className="grid gap-5 sm:grid-cols-2">
+          <Field label="Quality" id="screenshot-quality">
+            <OptionSelect
+              id="screenshot-quality"
+              items={SCREENSHOT_QUALITY_OPTIONS}
+              value={settings.screenshotQuality}
+              onValueChange={(screenshotQuality) => updateSettings({ screenshotQuality })}
+            />
+          </Field>
+          <Field label="Download format" id="image-format">
+            <OptionSelect
+              id="image-format"
+              items={IMAGE_FORMAT_OPTIONS}
+              value={settings.imageFormat}
+              onValueChange={(imageFormat) => updateSettings({ imageFormat })}
             />
           </Field>
         </CardContent>

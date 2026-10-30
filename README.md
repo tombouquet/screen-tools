@@ -5,7 +5,7 @@ Chrome extension that records your screen, a window, a tab or your camera, with 
 The recorder is a rebuild of the [Screen Recorder](https://chromewebstore.google.com/detail/screen-recorder/hniebljpgcogalllopnjokppmgbhaden) extension with the same features and a [shadcn/ui](https://ui.shadcn.com) design. See [docs/parity.md](docs/parity.md) for what matches the original and what's different.
 
 - **Toolbar popup:** one click to start recording the screen, the camera or both, or to take a screenshot.
-- **Screenshots:** capture a selected area, the visible area or the full page. Each opens in an editor with arrows, rectangles, ellipses, pen, highlighter, text, pixelate and crop, with undo. Download as PNG or JPG, or copy to the clipboard. The latest 10 are kept. Full page scrolls the window, so pages that scroll an inner panel (Gmail and many web apps) capture only what's visible. Chrome blocks screenshots of its own pages and the Web Store.
+- **Screenshots:** capture a selected area, the visible area or the full page. Each opens in an editor with arrows, rectangles, ellipses, pen, highlighter, text, pixelate and crop, with undo. Download as PNG or JPG, or copy to the clipboard. Saved at native resolution by default, or capped at 2560, 1920 or 1280 px wide in Settings. The latest 10 are kept. Full page scrolls the window, so pages that scroll an inner panel (Gmail and many web apps) capture only what's visible. Chrome blocks screenshots of its own pages and the Web Store.
 - **Capture:** only screen (whole screen, a window or a Chrome tab), only camera, or screen with a camera overlay.
 - **Audio:** none, microphone, system audio, or both mixed.
 - **Camera overlay:** pick the corner, size, shape (rectangle, circle, squircle), zoom and mirroring.

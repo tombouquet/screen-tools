@@ -15,16 +15,17 @@ const MAX_AREA = 268_000_000;
 // Very long pages stop here, about a minute of scrolling.
 const MAX_FULL_PAGE_STEPS = 100;
 
-export async function takeScreenshot(mode: ScreenshotMode, tabId: number, windowId: number): Promise<void> {
+export async function takeScreenshot(mode: ScreenshotMode, tabId: number, windowId: number, maxWidth: number): Promise<void> {
   try {
     const tab = await chrome.tabs.get(tabId);
-    const blob =
+    const captured =
       mode === 'visible'
         ? await captureVisible(windowId)
         : mode === 'area'
           ? await captureArea(tabId, windowId)
           : await captureFullPage(tabId, windowId);
-    if (!blob) return;
+    if (!captured) return;
+    const blob = await limitWidth(captured, maxWidth);
     const { width, height } = await createImageBitmap(blob);
     const id = await addScreenshot({ blob, original: blob, width, height, title: tab.title, url: tab.url });
     await chrome.tabs.create({ url: appUrl(`/screenshots/${id}`), index: tab.index + 1, openerTabId: tabId });
@@ -104,6 +105,19 @@ async function captureFullPage(tabId: number, windowId: number): Promise<Blob> {
     await run(restorePage, [page.scrollX, page.scrollY]).catch(() => undefined);
     await applyBadge();
   }
+}
+
+/** Scales the image down to `maxWidth`, keeping its shape. 0 or a narrower image passes through. */
+async function limitWidth(blob: Blob, maxWidth: number): Promise<Blob> {
+  const image = await createImageBitmap(blob);
+  if (!maxWidth || image.width <= maxWidth) return blob;
+  const width = maxWidth;
+  const height = Math.round((image.height * maxWidth) / image.width);
+  const canvas = new OffscreenCanvas(width, height);
+  const context = canvas.getContext('2d')!;
+  context.imageSmoothingQuality = 'high';
+  context.drawImage(image, 0, 0, width, height);
+  return canvas.convertToBlob({ type: 'image/png' });
 }
 
 const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, Math.max(0, ms)));

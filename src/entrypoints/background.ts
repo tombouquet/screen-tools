@@ -62,7 +62,7 @@ export default defineBackground(() => {
   chrome.runtime.onMessage.addListener((message: AppMessage) => {
     if (message?.type === 'checkForUpdate') void checkIfStale();
     if (message?.type === 'openApp') void openApp(message.route);
-    if (message?.type === 'screenshot') void takeScreenshot(message.mode, message.tabId, message.windowId);
+    if (message?.type === 'screenshot') void takeScreenshot(message.mode, message.tabId, message.windowId, message.maxWidth);
   });
 
   chrome.runtime.onInstalled.addListener(({ reason, previousVersion }) => {

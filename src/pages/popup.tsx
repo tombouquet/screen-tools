@@ -5,7 +5,7 @@ import { ThemeProvider } from '@/components/theme-provider';
 import { Button } from '@/components/ui/button';
 import { openAppTab } from '@/lib/download';
 import type { AppMessage, ScreenshotMode } from '@/lib/messages';
-import type { CaptureSource } from '@/lib/settings';
+import { getSettings, screenshotMaxWidth, type CaptureSource } from '@/lib/settings';
 
 const RECORD: { source: CaptureSource; label: string; icon: LucideIcon }[] = [
   { source: 'screen', label: 'Screen', icon: Monitor },
@@ -37,7 +37,8 @@ async function send(message: AppMessage): Promise<void> {
 async function screenshot(mode: ScreenshotMode): Promise<void> {
   const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
   if (tab?.id === undefined) return;
-  await send({ type: 'screenshot', mode, tabId: tab.id, windowId: tab.windowId });
+  const maxWidth = screenshotMaxWidth(getSettings().screenshotQuality);
+  await send({ type: 'screenshot', mode, tabId: tab.id, windowId: tab.windowId, maxWidth });
 }
 
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
