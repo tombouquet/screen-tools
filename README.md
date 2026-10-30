@@ -27,10 +27,7 @@ Click the toolbar icon to start a recording or take a screenshot, and click it a
 
 ## Updating
 
-Chrome doesn't update unpacked extensions on its own, so the extension checks the latest GitHub release every hour and when you open the recorder. When a newer version is out you get a `↑` badge on the toolbar icon, one desktop notification, and a banner in the recorder. To update:
-
-1. Download the new zip from the release and unzip it over your current folder.
-2. Click **Reload extension** in the banner, or the reload button on `chrome://extensions`.
+Chrome doesn't update unpacked extensions on its own. To update, download the new zip from the [latest release](https://github.com/tombouquet/screen-tools/releases/latest), unzip it over your current folder, and click the reload button on `chrome://extensions`.
 
 The changelog opens after every version change. You can also open it from the version number next to the title.
 
@@ -55,6 +52,6 @@ Built with [WXT](https://wxt.dev), React, TypeScript, Tailwind CSS v4 and shadcn
 Releases are cut by [Release Please](https://github.com/googleapis/release-please) from [Conventional Commits](https://www.conventionalcommits.org/) on `main`. Don't bump the version by hand.
 
 1. Merge `feat:` / `fix:` PRs into `main`. Release Please keeps a "chore(main): release x.y.z" PR open that bumps `package.json` (WXT copies it into the manifest) and adds the new `CHANGELOG.md` section. `feat` bumps the minor version and `fix` the patch.
-2. Merge that PR when you want to ship. It tags `vX.Y.Z`, creates the GitHub release with the changelog as its notes, then builds the extension and attaches `screen-tools-vX.Y.Z.zip`. Installed copies see the update at their next check.
+2. Merge that PR when you want to ship. It tags `vX.Y.Z`, creates the GitHub release with the changelog as its notes, then builds the extension and attaches `screen-tools-vX.Y.Z.zip`. Installed copies update when their users download the new zip.
 
 Keep **immutable releases** off in the repo settings. Release Please publishes the release before the zip is built, and GitHub rejects uploads to an immutable release, so the release ships without a zip. v1.0.0 hit this and has no zip; use v1.0.1 or later.

@@ -8,7 +8,7 @@ Reference: "Screen Recorder" by Erich Behrens (scre.io), v3.3.1, Chrome Web Stor
 | --- | --- |
 | Toolbar click opens an 800×690 popup window with the app | Toolbar click opens a menu: record screen, camera or both (opens a 960×780 window centred over the current Chrome window, or focuses the open one, and starts), or take a screenshot |
 | Options page is the app's `#/settings` route | Same |
-| Permissions: `desktopCapture` only | Adds `activeTab` and `scripting` for screenshots, plus `storage`, `notifications` and `alarms` |
+| Permissions: `desktopCapture` only | Adds `activeTab` and `scripting` for screenshots, plus `storage`, and `notifications` for screenshot errors |
 | Settings in `localStorage` | Same |
 | 51 languages | English only |
 
@@ -48,7 +48,7 @@ Reference: "Screen Recorder" by Erich Behrens (scre.io), v3.3.1, Chrome Web Stor
 
 - Original had paid "premium" overlay customisation and a watermark on Screen + Camera. Everything here is free with no watermark.
 - Added: a 3-second countdown before recording starts (in the recorder and on the toolbar badge; Cancel stops it), and while recording the toolbar icon shows `REC` and a click on it stops the recording instead of opening the menu.
-- Added: MP4 output, the default (H.264 + AAC; falls back to WebM where Chrome can't record MP4), light/dark/system theme, recording timer, a toolbar badge and banner when a new GitHub release is out.
+- Added: MP4 output, the default (H.264 + AAC; falls back to WebM where Chrome can't record MP4), light/dark/system theme, recording timer.
 - Screen resolution setting (native default, 4K, 1440p, 1080p, 720p, 480p); the original always captured at native size.
 - Camera overlay sizes are a share of the frame instead of fixed pixels, one step bigger than the original (at 1080p: small 480, medium 640, large 864 px wide), with a 24 px margin at 1080p. The square shape is a squircle, and is the default.
 - Save dialog (a setting, on by default): file name plus size, either the original or a compressed copy at one of four presets (High quality 1080p, Balanced 720p, Small 720p, Smallest 480p), each with an estimated file size. Compression runs in the browser with Mediabunny and WebCodecs and the stored recording is never replaced. Videos over 25 MB get a notice that opens the dialog with a smaller size picked. The original always saved `screen-capture.webm` with no dialog; with the setting off this saves the original straight away with a dated name.

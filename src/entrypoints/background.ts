@@ -1,12 +1,11 @@
 // Opens the recorder in its own small window when the toolbar popup asks (one window
-// at a time), takes screenshots, and runs the update check. Opens the changelog after
-// installs and version changes. Mid-recording the popup is off, so a toolbar click
-// lands here and stops the recording.
+// at a time) and takes screenshots. Opens the changelog after installs and version
+// changes. Mid-recording the popup is off, so a toolbar click lands here and stops the
+// recording.
 import { appUrl } from '@/lib/download';
 import type { AppMessage } from '@/lib/messages';
 import { takeScreenshot } from '@/lib/screenshot';
 import { resetToolbar } from '@/lib/toolbar';
-import { CHECK_ALARM, applyBadge, checkForUpdate, checkIfStale, openUpdateNotification, scheduleChecks } from '@/lib/updates';
 import { currentVersion } from '@/lib/version';
 
 const WINDOW_KEY = 'appWindowId';
@@ -78,7 +77,6 @@ export default defineBackground(() => {
   chrome.action.onClicked.addListener(() => void stopRecording());
 
   chrome.runtime.onMessage.addListener((message: AppMessage) => {
-    if (message?.type === 'checkForUpdate') void checkIfStale();
     if (message?.type === 'openApp') void openApp(message.route);
     if (message?.type === 'screenshot') void takeScreenshot(message.mode, message.tabId, message.windowId, message.maxWidth);
   });
@@ -88,20 +86,10 @@ export default defineBackground(() => {
     if (reason === 'install' || (reason === 'update' && previousVersion !== currentVersion())) {
       void chrome.tabs.create({ url: appUrl('/changelog') });
     }
-    // Right away from the last stored release, in case the fresh check fails.
-    void applyBadge();
-    scheduleChecks();
   });
 
   chrome.runtime.onStartup.addListener(() => {
-    // Also turns the menu back on, in case Chrome quit mid-recording.
+    // Turns the menu back on, in case Chrome quit mid-recording.
     void resetToolbar();
-    scheduleChecks();
   });
-
-  chrome.alarms.onAlarm.addListener((alarm) => {
-    if (alarm.name === CHECK_ALARM) void checkForUpdate();
-  });
-
-  chrome.notifications.onClicked.addListener((id) => void openUpdateNotification(id, appUrl('/changelog')));
 });
