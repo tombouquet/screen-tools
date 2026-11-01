@@ -7,8 +7,8 @@ export type ConnectorId = 'local' | 'google-drive' | 'dropbox';
 export type MediaKind = 'video' | 'image';
 
 /**
- * How to sign in to a service with `chrome.identity.launchWebAuthFlow`. The redirect is
- * always `chrome.identity.getRedirectURL()` (`https://<extension-id>.chromiumapp.org/`),
+ * How to sign in to a service with `browser.identity.launchWebAuthFlow`. The redirect is
+ * always `browser.identity.getRedirectURL()` (`https://<extension-id>.chromiumapp.org/`),
  * which has to be registered with the service.
  */
 export interface OAuthConfig {
@@ -46,7 +46,7 @@ export interface Account {
   name?: string;
 }
 
-/** A connected account, kept in `chrome.storage.local`. One per connector. */
+/** A connected account, kept in `browser.storage.local`. One per connector. */
 export interface Connection {
   connector: ConnectorId;
   account: Account;

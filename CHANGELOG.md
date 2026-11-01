@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.5.0](https://github.com/tombouquet/screen-tools/compare/v1.4.1...v1.5.0) (2026-10-30)
+
+
+### Features
+
+* Firefox support ([#16](https://github.com/tombouquet/screen-tools/issues/16)) ([16c396c](https://github.com/tombouquet/screen-tools/commit/16c396c93ab180756d8f85bf4668be2aa791fe67))
+
 ## [1.4.1](https://github.com/tombouquet/screen-tools/compare/v1.4.0...v1.4.1) (2026-10-30)
 
 

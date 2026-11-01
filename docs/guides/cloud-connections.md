@@ -6,13 +6,15 @@ A build without an ID still works: the service shows in Settings with Connect tu
 
 ## How sign-in works
 
-Every service signs in through `chrome.identity.launchWebAuthFlow`, which works in Chrome, Edge and Brave and lets the user pick an account. The redirect URI is always:
+Every service signs in through `browser.identity.launchWebAuthFlow`, which works in Chrome, Edge, Brave and Firefox and lets the user pick an account. The redirect URI is always:
 
 ```text
 https://<extension-id>.chromiumapp.org/
 ```
 
 Register that exact URI, with the trailing slash, with each service. The extension ID has to stay the same between builds for it to match; see [Keeping the extension ID stable](#keeping-the-extension-id-stable).
+
+Firefox has its own redirect URI, worked out from the add-on ID (`screen-tools@pipelabs.com.au`), so it's the same in every Firefox build. To find it, open the add-on's Settings page, open the console and run `browser.identity.getRedirectURL()`. It looks like `https://<hash>.extensions.allizom.org/`. Register it with each service too.
 
 - **Google** uses the implicit token flow. There's no refresh token; the token is renewed silently by repeating the flow with `prompt=none`.
 - **Dropbox** uses PKCE with `token_access_type=offline`, which returns a refresh token.

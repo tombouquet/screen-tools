@@ -1,6 +1,7 @@
-// Connected accounts, one per connector, kept in chrome.storage.local so every extension
+// Connected accounts, one per connector, kept in browser.storage.local so every extension
 // page sees the same sign-ins. Tokens stay on this computer.
 import { useSyncExternalStore } from 'react';
+import { browser, type Browser } from 'wxt/browser';
 import type { Connection, ConnectorId } from './types';
 
 const STORAGE_KEY = 'connections';
@@ -12,12 +13,12 @@ let loading: Promise<Connection[]> | undefined;
 const listeners = new Set<() => void>();
 
 async function read(): Promise<Stored> {
-  const { [STORAGE_KEY]: stored } = await chrome.storage.local.get(STORAGE_KEY);
+  const { [STORAGE_KEY]: stored } = await browser.storage.local.get(STORAGE_KEY);
   return stored && typeof stored === 'object' ? (stored as Stored) : {};
 }
 
 async function write(stored: Stored): Promise<void> {
-  await chrome.storage.local.set({ [STORAGE_KEY]: stored });
+  await browser.storage.local.set({ [STORAGE_KEY]: stored });
 }
 
 export async function listConnections(): Promise<Connection[]> {
@@ -40,11 +41,11 @@ export async function removeConnection(id: ConnectorId): Promise<void> {
 
 /** Calls `listener` whenever any page adds, renews or removes a connection. */
 export function subscribeConnections(listener: () => void): () => void {
-  const onChanged = (changes: Record<string, chrome.storage.StorageChange>, area: string) => {
+  const onChanged = (changes: Record<string, Browser.storage.StorageChange>, area: string) => {
     if (area === 'local' && STORAGE_KEY in changes) listener();
   };
-  chrome.storage.onChanged.addListener(onChanged);
-  return () => chrome.storage.onChanged.removeListener(onChanged);
+  browser.storage.onChanged.addListener(onChanged);
+  return () => browser.storage.onChanged.removeListener(onChanged);
 }
 
 let reloadAfter = false;

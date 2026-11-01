@@ -1,8 +1,10 @@
-// Signing in to upload destinations with chrome.identity.launchWebAuthFlow, which works in
+// Signing in to upload destinations with browser.identity.launchWebAuthFlow, which works in
 // every Chromium browser and lets people pick the account. No client secrets and no
 // server: Google uses the implicit token flow, renewed silently; Dropbox uses PKCE with a
 // refresh token. The `identity` permission and each service's API origins are optional
 // and only requested when someone clicks Connect.
+import { browser, type Browser } from 'wxt/browser';
+import { platform } from '@/platform';
 import { getConnector } from './registry';
 import { getConnection, listConnections, removeConnection, saveConnection } from './connections';
 import {
@@ -52,7 +54,7 @@ function authorizeUrl(auth: OAuthConfig, params: Record<string, string>): string
   const url = new URL(auth.authorizeUrl);
   const all = {
     client_id: auth.clientId,
-    redirect_uri: chrome.identity.getRedirectURL(),
+    redirect_uri: browser.identity.getRedirectURL(),
     scope: auth.scopes.join(auth.scopeSeparator ?? ' '),
     ...auth.authorizeParams,
     ...params,
@@ -68,10 +70,14 @@ function authorizeUrl(auth: OAuthConfig, params: Record<string, string>): string
 async function runFlow(url: string, state: string, interactive: boolean): Promise<URLSearchParams> {
   let redirect: string | undefined;
   try {
-    redirect = await chrome.identity.launchWebAuthFlow(
+    redirect = await browser.identity.launchWebAuthFlow(
       interactive
         ? { url, interactive: true }
-        : { url, interactive: false, abortOnLoadForNonInteractive: false, timeoutMsForNonInteractive: SILENT_TIMEOUT_MS },
+        : // Google answers prompt=none with a JavaScript redirect, so Chrome has to wait for it.
+          // Firefox doesn't know these options and would reject them.
+          platform.id === 'chrome'
+          ? { url, interactive: false, abortOnLoadForNonInteractive: false, timeoutMsForNonInteractive: SILENT_TIMEOUT_MS }
+          : { url, interactive: false },
     );
   } catch (error) {
     // Chrome reports a closed sign-in window as "The user did not approve access."
@@ -143,7 +149,7 @@ async function pkceTokens(auth: OAuthConfig): Promise<TokenSet> {
     grant_type: 'authorization_code',
     code,
     client_id: auth.clientId,
-    redirect_uri: chrome.identity.getRedirectURL(),
+    redirect_uri: browser.identity.getRedirectURL(),
     code_verifier: verifier,
   });
   return { accessToken: json.access_token!, refreshToken: json.refresh_token, expiresAt: expiresAt(json.expires_in) };
@@ -164,7 +170,7 @@ const bearerFetch =
  * Throws `SignInCancelled` if the user backs out.
  */
 export async function connect(connector: Connector): Promise<Connection> {
-  const granted = await chrome.permissions.request({ permissions: ['identity'], origins: connector.hosts });
+  const granted = await browser.permissions.request({ permissions: ['identity'], origins: connector.hosts });
   if (!granted) throw new SignInCancelled();
   const auth = requireAuth(connector);
   const tokens = auth.flow === 'pkce' ? await pkceTokens(auth) : await implicitTokens(auth, true);
@@ -254,9 +260,9 @@ export async function disconnect(id: ConnectorId): Promise<void> {
   // Keep origins another connected service also uses.
   const stillNeeded = new Set(others.flatMap((c) => getConnector(c.connector).hosts));
   const origins = connector.hosts.filter((host) => !stillNeeded.has(host));
-  const permissions: chrome.runtime.ManifestPermission[] = others.length ? [] : ['identity'];
+  const permissions: Browser.runtime.ManifestPermission[] = others.length ? [] : ['identity'];
   if (!origins.length && !permissions.length) return;
-  await chrome.permissions
+  await browser.permissions
     .remove({ origins, permissions })
     .catch((error: unknown) => console.warn("Couldn't remove permissions", error));
 }

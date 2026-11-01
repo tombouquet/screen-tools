@@ -1,3 +1,5 @@
+import { browser } from 'wxt/browser';
+
 /** Saves a blob through the browser's normal download flow. */
 export function downloadBlob(blob: Blob, fileName: string): void {
   const url = URL.createObjectURL(blob);
@@ -8,13 +10,13 @@ export function downloadBlob(blob: Blob, fileName: string): void {
   document.body.append(link);
   link.click();
   link.remove();
-  // Revoking straight away can cancel the download in some Chrome versions.
+  // Revoking straight away can cancel the download in some browser versions.
   setTimeout(() => URL.revokeObjectURL(url), 60_000);
 }
 
-export const appUrl = (route = '/') => chrome.runtime.getURL(`/app.html#${route}`);
+export const appUrl = (route = '/') => browser.runtime.getURL(`/app.html#${route}`);
 
-/** Opens a route of the app in a normal tab, where Chrome can show permission prompts. */
+/** Opens a route of the app in a normal tab, where the browser can show permission prompts. */
 export function openAppTab(route: string): void {
-  void chrome.tabs.create({ url: appUrl(route) });
+  void browser.tabs.create({ url: appUrl(route) });
 }
