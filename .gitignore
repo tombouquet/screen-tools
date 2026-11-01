@@ -5,3 +5,5 @@ stats.html
 .DS_Store
 *.log
 /out/
+.env.local
+.env.*.local
