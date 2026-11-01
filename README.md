@@ -1,6 +1,6 @@
 # Screen Tools
 
-Chrome extension that records your screen, a window, a tab or your camera, with microphone and system audio, and takes annotated screenshots. Free, no sign-up, no watermark, and nothing leaves your computer.
+Chrome extension that records your screen, a window, a tab or your camera, with microphone and system audio, and takes annotated screenshots. Free, no sign-up, no watermark. Nothing leaves your computer unless you connect Google Drive or Dropbox and upload a file.
 
 - **Toolbar popup:** one click to start recording the screen, the camera or both, or to take a screenshot.
 - **Countdown and quick stop:** recording starts after a 3-second countdown, shown in the recorder and on the toolbar icon. While recording, the icon shows `REC`; click it to stop.
@@ -12,7 +12,14 @@ Chrome extension that records your screen, a window, a tab or your camera, with 
 - **Formats:** MP4 by default, or WebM, at 15, 24, 30 (default) or 60 fps, with the screen captured at native size (default), 4K, 1440p, 1080p, 720p or 480p.
 - **Player:** skip back and forward, and drop in any video file to play it or make an old WebM recording seekable.
 - **Save options:** pick a file name and a size when you save: the original, or a smaller copy from presets that show the estimated file size up front. Suggested when a video is over 25 MB. Compression runs on your computer and the original is kept. Turn the dialog off to save straight away.
+- **Cloud uploads:** upload a recording or screenshot to Google Drive or Dropbox, and copy a share link in one click. Connect an account in Settings first. Share links are on by default and the choice is remembered. Files go to a Screen Tools folder in your Drive, or `Apps/Screen Tools` in your Dropbox, and the extension can't see anything else there.
 - **Light and dark themes.**
+
+## Privacy
+
+Recordings, screenshots and settings stay in the extension's storage on your computer. There are no analytics and no servers of ours.
+
+Uploads are optional. When you click **Connect** in Settings, Chrome asks you to allow access to that service's API sites (`googleapis.com` for Google Drive, `dropboxapi.com` for Dropbox). These are optional permissions: the extension doesn't ask for them at install, only for the service you connect. After that, files go straight from your browser to your own account, and only when you upload them. **Disconnect** deletes the stored sign-in and revokes it. See the [privacy policy](PRIVACY.md).
 
 ## Install
 
@@ -44,6 +51,8 @@ pnpm zip       # zipped build in .output/
 To try a production build, load `.output/chrome-mv3` with **Load unpacked**. `node scripts/make-icons.mjs` redraws the icons in `public/icon/`.
 
 The Chrome Web Store images are built from screenshots of the extension on made-up data: `pnpm screenshots` captures them and `pnpm showcase` composes the upload-ready images in `out/showcase/`. See [Listing screenshots](docs/guides/listing-screenshots.md) and [Listing image style](docs/reference/listing-image-style.md).
+
+Uploads need OAuth apps for Google Drive and Dropbox, with their IDs in `.env.local`. A build without them works, with Connect turned off. See [Cloud connections](docs/guides/cloud-connections.md).
 
 Built with [WXT](https://wxt.dev), React, TypeScript, Tailwind CSS v4 and shadcn/ui.
 
