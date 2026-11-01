@@ -38,8 +38,18 @@ jobs:
           node-version-file: .nvmrc
           cache: pnpm
       - run: pnpm install --frozen-lockfile
+      # Public identifiers for the upload services, kept as repository variables. Without
+      # them the build still works, with Connect turned off. The key pins the Chrome
+      # extension ID, so the OAuth redirect URL is the same wherever the zip is unpacked.
       - run: pnpm zip
+        env:
+          WXT_GOOGLE_CLIENT_ID: ${{ vars.WXT_GOOGLE_CLIENT_ID }}
+          WXT_DROPBOX_APP_KEY: ${{ vars.WXT_DROPBOX_APP_KEY }}
+          WXT_EXTENSION_KEY: ${{ vars.WXT_EXTENSION_KEY }}
       - run: pnpm zip:firefox
+        env:
+          WXT_GOOGLE_CLIENT_ID: ${{ vars.WXT_GOOGLE_CLIENT_ID }}
+          WXT_DROPBOX_APP_KEY: ${{ vars.WXT_DROPBOX_APP_KEY }}
       - name: Upload zips
         env:
           GH_TOKEN: ${{ github.token }}
