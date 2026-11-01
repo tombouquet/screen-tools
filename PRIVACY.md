@@ -46,4 +46,4 @@ Screen Tools' use and transfer to any other app of information received from Goo
 
 ## Contact
 
-Questions about this policy: [tom@pipelabs.com.au](mailto:tom@pipelabs.com.au).
+Questions about this policy: [open an issue on GitHub](https://github.com/tombouquet/screen-tools/issues).
