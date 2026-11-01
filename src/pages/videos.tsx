@@ -7,6 +7,7 @@ import { LargeFileNotice, useSaveVideo } from '@/components/save-video';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { UploadList } from '@/components/upload-list';
 import { navigate } from '@/hooks/use-route';
 import {
   MAX_RECORDINGS,
@@ -130,7 +131,11 @@ function RecordingView({
 
   const save = async (suggestCompression = false) => {
     const name = recordingFileName(new Date(recording.date), recording.mimeType);
-    if (!(await saveVideo(blob, recording.mimeType, name, { suggestCompression }))) return;
+    if (!(await saveVideo(blob, recording.mimeType, name, { suggestCompression, recordingId: id }))) return;
+    await markSaved();
+  };
+  // A finished upload counts as saving it.
+  const markSaved = async () => {
     await updateRecording(id, { saved: true });
     onChange({ ...recording, saved: true });
   };
@@ -168,6 +173,7 @@ function RecordingView({
       <CardContent className="space-y-4">
         {blob.size > LARGE_FILE_BYTES && <LargeFileNotice size={blob.size} onCompress={() => void save(true)} />}
         <RecordedVideo blob={blob} />
+        <UploadList kind="recording" id={id} onUploaded={() => void markSaved()} />
         <div className="flex flex-wrap justify-between gap-2">
           <BackButton />
           <div className="flex flex-wrap gap-2">

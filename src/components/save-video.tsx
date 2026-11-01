@@ -1,5 +1,5 @@
 import { Loader2 } from 'lucide-react';
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, useSyncExternalStore } from 'react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
@@ -7,6 +7,20 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Progress } from '@/components/ui/progress';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
+import { OptionSelect } from '@/components/option-select';
+import { ShareSwitch, useConnectedDestinations } from '@/components/upload-dialog';
+import { showUploadedToast, uploadErrorMessage, UploadProgress } from '@/components/upload-status';
+import { navigate } from '@/hooks/use-route';
+import { CONNECTORS, getConnector } from '@/lib/connectors/registry';
+import type { Connector, ConnectorId } from '@/lib/connectors/types';
+import {
+  UploadCancelled,
+  cancel as cancelUpload,
+  getLiveUploads,
+  startUpload,
+  subscribeUploads,
+  useUploadGuard,
+} from '@/lib/connectors/upload';
 import {
   CompressionCancelled,
   PRESETS,
@@ -21,7 +35,7 @@ import {
 } from '@/lib/compress';
 import { downloadBlob } from '@/lib/download';
 import { cleanFileName, fileExtension, formatBytes, splitFileName } from '@/lib/formats';
-import { getSettings, updateSettings, type SaveSize } from '@/lib/settings';
+import { destinationFor, getSettings, updateSettings, type SaveSize } from '@/lib/settings';
 import { cn } from '@/lib/utils';
 
 interface SaveRequest {
@@ -30,21 +44,26 @@ interface SaveRequest {
   fileName: string;
   /** Preselect the suggested compression preset (opened from the "too big" notice). */
   suggestCompression: boolean;
+  recordingId?: number;
   resolve: (saved: boolean) => void;
 }
 
 export interface SaveOptions {
   suggestCompression?: boolean;
+  /** The stored recording being saved, so uploads of it are listed with it. */
+  recordingId?: number;
 }
 
 /**
  * Saving a video. With "show save options" on (the default), Save opens a dialog for the
- * file name and size: the original, or a compressed copy at one of the presets.
- * `save` resolves true once the download starts, false if the user cancels.
- * Render `dialog` somewhere in the page.
+ * file name, size and destination: this computer or a connected service. Sizes are the
+ * original or a compressed copy at one of the presets; a compressed copy is made first
+ * and then saved or uploaded. `save` resolves true once the download starts or the
+ * upload finishes, false if the user cancels. Render `dialog` somewhere in the page.
  */
 export function useSaveVideo() {
   const [request, setRequest] = useState<SaveRequest>();
+  useUploadGuard();
 
   const save = (blob: Blob, mimeType: string, fileName: string, options: SaveOptions = {}): Promise<boolean> => {
     if (!getSettings().showSaveOptions && !options.suggestCompression) {
@@ -52,7 +71,14 @@ export function useSaveVideo() {
       return Promise.resolve(true);
     }
     return new Promise((resolve) =>
-      setRequest({ blob, mimeType, fileName, suggestCompression: Boolean(options.suggestCompression), resolve }),
+      setRequest({
+        blob,
+        mimeType,
+        fileName,
+        suggestCompression: Boolean(options.suggestCompression),
+        recordingId: options.recordingId,
+        resolve,
+      }),
     );
   };
 
@@ -68,15 +94,33 @@ export function useSaveVideo() {
 type Sizes = { kind: 'loading' } | { kind: 'ready'; info: VideoInfo; plans: PresetPlan[] } | { kind: 'unavailable' };
 
 const percentSmaller = (from: number, to: number) => Math.max(0, Math.round((1 - to / from) * 100));
+const baseMime = (mimeType: string) => mimeType.split(';')[0]!.trim();
+
+type Progressing =
+  | { kind: 'compress'; plan: PresetPlan; fraction: number }
+  | { kind: 'upload'; connector: Connector; uploadId?: number };
 
 function SaveDialog({ request, onDone }: { request: SaveRequest; onDone: (saved: boolean) => void }) {
   const { base, extension } = splitFileName(request.fileName);
   const [name, setName] = useState(base);
   const [size, setSize] = useState<SaveSize>('original');
   const [sizes, setSizes] = useState<Sizes>({ kind: 'loading' });
-  const [progress, setProgress] = useState<{ plan: PresetPlan; fraction: number }>();
+  const [progress, setProgress] = useState<Progressing>();
   const [error, setError] = useState<string>();
   const job = useRef<CompressionJob>(undefined);
+  const upload = useRef<number>(undefined);
+  // Set once the dialog is cancelled or gone, so an upload still starting stops straight away.
+  const closed = useRef(false);
+  const live = useSyncExternalStore(subscribeUploads, getLiveUploads);
+
+  const destinations = useConnectedDestinations('video');
+  const [chosen, setChosen] = useState<ConnectorId>(getSettings().saveDestination);
+  const [share, setShare] = useState(getSettings().shareLink);
+  // Falls back to this computer when the remembered service isn't connected any more.
+  const destination = destinationFor(chosen, destinations.map((d) => d.id));
+  const cloud = destination === 'local' ? undefined : getConnector(destination);
+  // Only point at Settings when this build can connect something.
+  const canConnect = CONNECTORS.some((c) => c.auth?.clientId);
 
   // Work out the presets' estimated sizes, then pick last time's size (or the suggestion).
   useEffect(() => {
@@ -93,39 +137,76 @@ function SaveDialog({ request, onDone }: { request: SaveRequest; onDone: (saved:
       },
       () => !stale && setSizes({ kind: 'unavailable' }),
     );
+    closed.current = false;
     return () => {
       stale = true;
+      closed.current = true;
       job.current?.cancel();
+      if (upload.current !== undefined) cancelUpload(upload.current);
     };
   }, [request]);
 
   const cancel = () => {
+    closed.current = true;
     job.current?.cancel();
     job.current = undefined;
+    if (upload.current !== undefined) cancelUpload(upload.current);
+    upload.current = undefined;
     onDone(false);
+  };
+
+  /** Hands the (possibly compressed) file to the chosen destination. */
+  const deliver = async (blob: Blob, mimeType: string, fileName: string) => {
+    if (!cloud) {
+      downloadBlob(blob, fileName);
+      onDone(true);
+      return;
+    }
+    setProgress({ kind: 'upload', connector: cloud });
+    try {
+      const current = await startUpload({
+        source: request.recordingId !== undefined ? { kind: 'recording', id: request.recordingId } : undefined,
+        connectorId: cloud.id,
+        job: { blob, fileName, mimeType: baseMime(mimeType), kind: 'video', share },
+        // The original is in the recording already; a compressed copy has to be kept for a resume.
+        blobIsSource: blob === request.blob,
+      });
+      if (closed.current) cancelUpload(current.id);
+      upload.current = current.id;
+      setProgress({ kind: 'upload', connector: cloud, uploadId: current.id });
+      const result = await current.promise;
+      if (upload.current !== current.id) return;
+      upload.current = undefined;
+      showUploadedToast(cloud, result);
+      onDone(true);
+    } catch (reason) {
+      if (reason instanceof UploadCancelled) return;
+      console.error(reason);
+      upload.current = undefined;
+      setProgress(undefined);
+      setError(uploadErrorMessage(cloud, reason));
+    }
   };
 
   const save = () => {
     const chosenBase = cleanFileName(name) || base;
-    updateSettings({ saveSize: size });
+    updateSettings({ saveSize: size, saveDestination: destination, ...(cloud ? { shareLink: share } : {}) });
+    setError(undefined);
     const plan = sizes.kind === 'ready' ? sizes.plans.find((p) => p.preset.id === size) : undefined;
     if (!plan) {
-      downloadBlob(request.blob, `${chosenBase}${extension}`);
-      onDone(true);
+      void deliver(request.blob, request.mimeType, `${chosenBase}${extension}`);
       return;
     }
-    setError(undefined);
-    setProgress({ plan, fraction: 0 });
+    setProgress({ kind: 'compress', plan, fraction: 0 });
     const current = compressVideo(request.blob, request.mimeType, plan, (fraction) =>
-      setProgress((p) => p && { ...p, fraction }),
+      setProgress((p) => (p?.kind === 'compress' ? { ...p, fraction } : p)),
     );
     job.current = current;
     current.promise.then(
       (result) => {
         if (job.current !== current) return;
         job.current = undefined;
-        downloadBlob(result.blob, `${chosenBase}.${fileExtension(result.mimeType)}`);
-        onDone(true);
+        void deliver(result.blob, result.mimeType, `${chosenBase}.${fileExtension(result.mimeType)}`);
       },
       (reason: unknown) => {
         if (job.current !== current) return;
@@ -133,12 +214,21 @@ function SaveDialog({ request, onDone }: { request: SaveRequest; onDone: (saved:
         setProgress(undefined);
         if (reason instanceof CompressionCancelled) return;
         console.error(reason);
-        setError(reason instanceof Error ? reason.message : String(reason));
+        setError(`Couldn't compress this video: ${reason instanceof Error ? reason.message : String(reason)}`);
       },
     );
   };
 
   const busy = Boolean(progress);
+  const uploading = progress?.kind === 'upload' ? progress : undefined;
+  const uploadProgress = uploading?.uploadId !== undefined ? live.get(uploading.uploadId) : undefined;
+  const submitLabel = cloud
+    ? size === 'original'
+      ? 'Upload'
+      : 'Compress and upload'
+    : size === 'original'
+      ? 'Save'
+      : 'Compress and save';
 
   return (
     <Dialog open onOpenChange={(open) => !open && cancel()}>
@@ -152,7 +242,7 @@ function SaveDialog({ request, onDone }: { request: SaveRequest; onDone: (saved:
         >
           <DialogHeader>
             <DialogTitle>Save video</DialogTitle>
-            <DialogDescription>It goes to your downloads folder.</DialogDescription>
+            <DialogDescription>{cloud ? cloud.description : 'It goes to your downloads folder.'}</DialogDescription>
           </DialogHeader>
 
           <div className="grid gap-2">
@@ -172,7 +262,13 @@ function SaveDialog({ request, onDone }: { request: SaveRequest; onDone: (saved:
             </div>
           </div>
 
-          {progress ? (
+          {uploading ? (
+            <UploadProgress
+              connector={uploading.connector}
+              sentBytes={uploadProgress?.sentBytes ?? 0}
+              size={uploadProgress?.size ?? 0}
+            />
+          ) : progress?.kind === 'compress' ? (
             <div className="space-y-3">
               <div className="flex justify-between text-sm">
                 <span>
@@ -182,62 +278,90 @@ function SaveDialog({ request, onDone }: { request: SaveRequest; onDone: (saved:
               </div>
               <Progress value={Math.round(progress.fraction * 100)} />
               <p className="text-muted-foreground text-xs">
-                It downloads when it's done. Long videos can take a while; keep this window open.
+                {cloud ? `It uploads to ${cloud.name}` : 'It downloads'} when it's done. Long videos can take a while; keep
+                this window open.
               </p>
             </div>
           ) : (
-            <div className="grid gap-2">
-              <Label>Size</Label>
-              <RadioGroup value={size} onValueChange={(v) => setSize(v as SaveSize)} className="gap-2">
-                <SizeOption
-                  value="original"
-                  label="Original"
-                  description={
-                    sizes.kind === 'ready'
-                      ? `Full quality, ${sizes.info.width}×${sizes.info.height}.`
-                      : 'Full quality, as recorded.'
-                  }
-                  selected={size === 'original'}
-                  size={formatBytes(request.blob.size)}
+            <>
+              <div className="grid gap-2">
+                <Label htmlFor="save-destination">Save to</Label>
+                <OptionSelect
+                  id="save-destination"
+                  items={[
+                    { value: 'local' as ConnectorId, label: 'This computer' },
+                    ...destinations.map((d) => ({ value: d.id, label: d.name })),
+                  ]}
+                  value={destination}
+                  onValueChange={setChosen}
                 />
-                {sizes.kind === 'loading' && (
-                  <p className="text-muted-foreground flex items-center gap-2 px-1 py-2 text-xs">
-                    <Loader2 className="size-3.5 animate-spin" /> Working out smaller sizes…
+                {destinations.length === 0 && canConnect && (
+                  <button
+                    type="button"
+                    className="text-muted-foreground hover:text-foreground justify-self-start text-xs underline underline-offset-4"
+                    onClick={() => {
+                      onDone(false);
+                      navigate('/settings');
+                    }}
+                  >
+                    Connect Google Drive or Dropbox in Settings
+                  </button>
+                )}
+              </div>
+              {cloud && <ShareSwitch checked={share} onChange={setShare} />}
+              <div className="grid gap-2">
+                <Label>Size</Label>
+                <RadioGroup value={size} onValueChange={(v) => setSize(v as SaveSize)} className="gap-2">
+                  <SizeOption
+                    value="original"
+                    label="Original"
+                    description={
+                      sizes.kind === 'ready'
+                        ? `Full quality, ${sizes.info.width}×${sizes.info.height}.`
+                        : 'Full quality, as recorded.'
+                    }
+                    selected={size === 'original'}
+                    size={formatBytes(request.blob.size)}
+                  />
+                  {sizes.kind === 'loading' && (
+                    <p className="text-muted-foreground flex items-center gap-2 px-1 py-2 text-xs">
+                      <Loader2 className="size-3.5 animate-spin" /> Working out smaller sizes…
+                    </p>
+                  )}
+                  {sizes.kind === 'unavailable' && (
+                    <p className="text-muted-foreground px-1 py-2 text-xs">This file can't be compressed.</p>
+                  )}
+                  {sizes.kind === 'ready' &&
+                    sizes.plans.map((plan) => (
+                      <SizeOption
+                        key={plan.preset.id}
+                        value={plan.preset.id}
+                        label={plan.preset.label}
+                        description={`${plan.preset.description} ${plan.width}×${plan.height}.`}
+                        selected={size === plan.preset.id}
+                        disabled={!plan.worthIt}
+                        size={plan.worthIt ? `≈ ${formatBytes(plan.estimatedBytes)}` : 'No smaller'}
+                        badge={plan.worthIt ? `${percentSmaller(sizes.info.size, plan.estimatedBytes)}% smaller` : undefined}
+                      />
+                    ))}
+                </RadioGroup>
+                {sizes.kind === 'ready' && (
+                  <p className="text-muted-foreground text-xs">
+                    Smaller sizes are estimates. Recordings with little movement usually come out smaller.
                   </p>
                 )}
-                {sizes.kind === 'unavailable' && (
-                  <p className="text-muted-foreground px-1 py-2 text-xs">This file can't be compressed.</p>
-                )}
-                {sizes.kind === 'ready' &&
-                  sizes.plans.map((plan) => (
-                    <SizeOption
-                      key={plan.preset.id}
-                      value={plan.preset.id}
-                      label={plan.preset.label}
-                      description={`${plan.preset.description} ${plan.width}×${plan.height}.`}
-                      selected={size === plan.preset.id}
-                      disabled={!plan.worthIt}
-                      size={plan.worthIt ? `≈ ${formatBytes(plan.estimatedBytes)}` : 'No smaller'}
-                      badge={plan.worthIt ? `${percentSmaller(sizes.info.size, plan.estimatedBytes)}% smaller` : undefined}
-                    />
-                  ))}
-              </RadioGroup>
-              {sizes.kind === 'ready' && (
-                <p className="text-muted-foreground text-xs">
-                  Smaller sizes are estimates. Recordings with little movement usually come out smaller.
-                </p>
-              )}
-            </div>
+              </div>
+            </>
           )}
 
-          {error && <p className="text-destructive text-sm">Couldn't compress this video: {error}</p>}
+          {error && <p className="text-destructive text-sm">{error}</p>}
 
           <DialogFooter>
             <Button type="button" variant="outline" onClick={cancel}>
               {busy ? 'Stop' : 'Cancel'}
             </Button>
             <Button type="submit" disabled={busy}>
-              {busy ? 'Compressing…' : size === 'original' ? 'Save' : 'Compress and save'}
+              {uploading ? 'Uploading…' : busy ? 'Compressing…' : submitLabel}
             </Button>
           </DialogFooter>
         </form>

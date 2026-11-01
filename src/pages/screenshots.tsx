@@ -1,4 +1,4 @@
-import { ArrowLeft, Copy, Download, Image as ImageIcon, Trash2, type LucideIcon } from 'lucide-react';
+import { ArrowLeft, CloudUpload, Copy, Download, Image as ImageIcon, Trash2, type LucideIcon } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { toast } from 'sonner';
 import { ConfirmDeleteDialog } from '@/components/confirm-dialog';
@@ -7,6 +7,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
+import { UploadDialog, useConnectedDestinations, type UploadFile } from '@/components/upload-dialog';
 import { navigate } from '@/hooks/use-route';
 import { downloadBlob } from '@/lib/download';
 import { screenshotFileName } from '@/lib/formats';
@@ -42,6 +43,16 @@ async function downloadScreenshot(screenshot: Screenshot): Promise<void> {
   downloadBlob(await encode(screenshot.blob, format), screenshotFileName(new Date(screenshot.date), format));
 }
 
+/** The screenshot in the download format, for uploading. */
+async function screenshotFile(screenshot: Screenshot): Promise<UploadFile> {
+  const format = getSettings().imageFormat;
+  return {
+    blob: await encode(screenshot.blob, format),
+    fileName: screenshotFileName(new Date(screenshot.date), format),
+    mimeType: format === 'png' ? 'image/png' : 'image/jpeg',
+  };
+}
+
 export function ScreenshotsPage({ id }: { id?: number }) {
   return id === undefined ? <ScreenshotList /> : <ScreenshotDetail id={id} />;
 }
@@ -61,6 +72,8 @@ function useObjectUrl(blob: Blob | undefined): string | undefined {
 function ScreenshotList() {
   const [screenshots, setScreenshots] = useState<Screenshot[]>();
   const [deleting, setDeleting] = useState<number>();
+  const [uploading, setUploading] = useState<Screenshot>();
+  const destinations = useConnectedDestinations('image');
 
   useEffect(() => {
     void listScreenshots().then(setScreenshots);
@@ -107,6 +120,9 @@ function ScreenshotList() {
                   icon={Download}
                   onClick={() => void downloadScreenshot(screenshot).then(() => markSaved(screenshot.id))}
                 />
+                {destinations.length > 0 && (
+                  <QuickAction label="Upload" icon={CloudUpload} onClick={() => setUploading(screenshot)} />
+                )}
                 <QuickAction label="Delete" icon={Trash2} destructive onClick={() => setDeleting(screenshot.id)} />
               </div>
             </li>
@@ -119,6 +135,14 @@ function ScreenshotList() {
         onConfirm={() => deleting !== undefined && void remove(deleting)}
         title="Delete this screenshot?"
         description="It's removed from Screenshots. Copies you downloaded stay in your downloads."
+      />
+      <UploadDialog
+        open={uploading !== undefined}
+        onOpenChange={(open) => !open && setUploading(undefined)}
+        kind="image"
+        source={uploading && { kind: 'screenshot', id: uploading.id }}
+        getFile={() => screenshotFile(uploading!)}
+        onUploaded={() => uploading && void markSaved(uploading.id)}
       />
     </Card>
   );
