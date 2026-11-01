@@ -64,6 +64,7 @@ Uploads go to the app folder, `Apps/Screen Tools`, in the user's Dropbox. The ap
    - `account_info.read`, to show who's connected
    - `files.content.write`, to upload
    - `sharing.write`, to create share links
+   - `sharing.read`, to reuse a share link that already exists
 5. On the **Settings** tab, under **OAuth 2**, add the redirect URI `https://<extension-id>.chromiumapp.org/`. Leave **Allow public clients (Implicit Grant & PKCE)** on.
 6. Copy the **App key** into `.env.local` as `WXT_DROPBOX_APP_KEY`. Don't use the app secret.
 

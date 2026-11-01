@@ -63,7 +63,8 @@ export const googleDrive: Connector = {
     authorizeUrl: 'https://accounts.google.com/o/oauth2/v2/auth',
     clientId: import.meta.env.WXT_GOOGLE_CLIENT_ID ?? '',
     scopes: ['https://www.googleapis.com/auth/drive.file'],
-    authorizeParams: { include_granted_scopes: 'true' },
+    // Lets people pick which Google account. Silent renewal replaces it with prompt=none.
+    authorizeParams: { include_granted_scopes: 'true', prompt: 'select_account' },
     silentParams: (account) => ({ prompt: 'none', ...(account.email ? { login_hint: account.email } : {}) }),
   },
 
