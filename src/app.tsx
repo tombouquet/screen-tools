@@ -88,7 +88,7 @@ export function App() {
             <Page path={path} />
           </main>
           <footer className="text-muted-foreground text-center text-xs">
-            Free, no sign-up, no watermark. Recordings and screenshots never leave your computer.
+            Free, no sign-up, no watermark. Recordings and screenshots stay on your computer unless you upload them.
           </footer>
         </div>
         <Toaster position="bottom-center" richColors closeButton />

@@ -1,5 +1,10 @@
 import tailwindcss from '@tailwindcss/vite';
+import { existsSync } from 'node:fs';
 import { defineConfig } from 'wxt';
+
+// WXT hands .env files to the app code but not to this config, so read .env.local here
+// for WXT_EXTENSION_KEY. A variable already set in the shell wins.
+if (existsSync('.env.local')) process.loadEnvFile('.env.local');
 
 export default defineConfig({
   srcDir: 'src',

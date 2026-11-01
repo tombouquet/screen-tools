@@ -384,7 +384,7 @@ function FinishedView({
   /** Resolves false if the user cancels the save dialog. */
   const save = async (suggestCompression = false): Promise<boolean> => {
     const name = recordingFileName(new Date(), recording.mimeType);
-    if (!(await saveVideo(recording.blob, recording.mimeType, name, { suggestCompression }))) return false;
+    if (!(await saveVideo(recording.blob, recording.mimeType, name, { suggestCompression, recordingId: recording.id }))) return false;
     await updateRecording(recording.id, { saved: true });
     onSaved();
     return true;
