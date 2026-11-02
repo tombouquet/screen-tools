@@ -1,4 +1,4 @@
-import { CheckCircle2, Cloud, ExternalLink, Loader2, Monitor, Moon, ShieldAlert, Sun, XCircle } from 'lucide-react';
+import { CheckCircle2, ExternalLink, Loader2, Monitor, Moon, ShieldAlert, Sun, XCircle } from 'lucide-react';
 import { useCallback, useEffect, useState } from 'react';
 import { toast } from 'sonner';
 import { browser } from 'wxt/browser';
@@ -291,7 +291,7 @@ function ConnectionsCard() {
             const busy = pending === connector.id;
             return (
               <li key={connector.id} className="flex flex-wrap items-center gap-3 py-3 first:pt-0 last:pb-0">
-                <Cloud className="text-muted-foreground size-5 shrink-0" />
+                <connector.icon className="size-5 shrink-0" />
                 <div className="min-w-48 flex-1 space-y-0.5">
                   <p className="text-sm font-medium">{connector.name}</p>
                   <p className="text-muted-foreground text-xs">{connector.description}</p>

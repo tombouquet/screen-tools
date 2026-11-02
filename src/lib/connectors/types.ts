@@ -2,6 +2,7 @@
 // upload status only know about this interface and the list in registry.ts, so adding a
 // service is one connector file plus its OAuth app settings. Upload servers are the
 // exception: people add them in Settings, so each one is built from its saved settings.
+import type { ComponentType } from 'react';
 
 /** Upload servers get `server:<random id>`, one per server added in Settings. */
 export type ConnectorId = 'local' | 'google-drive' | 'dropbox' | `server:${string}`;
@@ -121,6 +122,8 @@ export interface Connector {
   name: string;
   /** One line for Settings, e.g. "Uploads go to a Screen Tools folder in your Drive." */
   description: string;
+  /** Shown next to the name in Settings and the save dialog. Sized by `className`. */
+  icon: ComponentType<{ className?: string }>;
   accepts: MediaKind[];
   /** Origins the API calls need, requested as optional host permissions on Connect. */
   hosts: string[];

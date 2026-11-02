@@ -1,5 +1,6 @@
 // Dropbox, with App folder access: the app only sees /Apps/Screen Tools, and every path
 // it sends or gets back is relative to that folder.
+import { DropboxIcon } from '@/components/icons';
 import { contentUpload, hasTag, readError, rpc, toUploadError, type DropboxError } from './dropbox/api';
 import { ReconnectNeeded, UploadError, type Account, type Connector, type UploadContext, type UploadJob, type UploadResult } from './types';
 
@@ -198,6 +199,7 @@ function webUrl(file: FileMetadata) {
 export const dropbox: Connector = {
   id: 'dropbox',
   name: 'Dropbox',
+  icon: DropboxIcon,
   description: 'Uploads go to Apps/Screen Tools in your Dropbox.',
   accepts: ['video', 'image'],
   hosts: ['https://api.dropboxapi.com/*', 'https://content.dropboxapi.com/*'],

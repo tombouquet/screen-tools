@@ -1,6 +1,7 @@
 // Upload servers: any server that hands out an upload URL and a public link for a file.
 // The extension asks the server's endpoint for both, then sends the file straight to the
 // upload URL. The format is in docs/guides/upload-servers.md; keep the two in step.
+import { Server } from 'lucide-react';
 import { browser } from 'wxt/browser';
 import { saveConnection } from './connections';
 import { UploadError, type Connection, type Connector, type UploadContext, type UploadJob, type UploadServerSettings } from './types';
@@ -39,6 +40,7 @@ export function uploadServerConnector(id: Connector['id'], settings: UploadServe
     id,
     name: settings.name,
     description: `Uploads to ${host}. Every upload gets a link anyone can open.`,
+    icon: Server,
     accepts: ['video', 'image'],
     hosts: endpoint ? [hostPattern(endpoint)] : [],
     auth: null,

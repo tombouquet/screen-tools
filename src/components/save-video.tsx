@@ -11,6 +11,7 @@ import { OptionSelect } from '@/components/option-select';
 import { ShareSwitch, useConnectedDestinations } from '@/components/upload-dialog';
 import { showUploadedToast, uploadErrorMessage, UploadProgress } from '@/components/upload-status';
 import { navigate } from '@/hooks/use-route';
+import { local } from '@/lib/connectors/local';
 import type { Connector, ConnectorId } from '@/lib/connectors/types';
 import {
   UploadCancelled,
@@ -23,7 +24,6 @@ import {
 import {
   CompressionCancelled,
   analyzeVideo,
-  compressedExtension,
   compressVideo,
   planPresets,
   suggestedPreset,
@@ -246,19 +246,14 @@ function SaveDialog({ request, onDone }: { request: SaveRequest; onDone: (saved:
 
           <div className="grid gap-2">
             <Label htmlFor="file-name">File name</Label>
-            <div className="flex items-center gap-2">
-              <Input
-                id="file-name"
-                value={name}
-                autoFocus
-                disabled={busy}
-                onFocus={(event) => event.currentTarget.select()}
-                onChange={(event) => setName(event.target.value)}
-              />
-              <span className="text-muted-foreground text-sm">
-                {size === 'original' || sizes.kind !== 'ready' ? extension : compressedExtension(request.mimeType)}
-              </span>
-            </div>
+            <Input
+              id="file-name"
+              value={name}
+              autoFocus
+              disabled={busy}
+              onFocus={(event) => event.currentTarget.select()}
+              onChange={(event) => setName(event.target.value)}
+            />
           </div>
 
           {uploading ? (
@@ -288,8 +283,8 @@ function SaveDialog({ request, onDone }: { request: SaveRequest; onDone: (saved:
                 <OptionSelect
                   id="save-destination"
                   items={[
-                    { value: 'local' as ConnectorId, label: 'This computer' },
-                    ...destinations.map((d) => ({ value: d.id, label: d.name })),
+                    { value: 'local' as ConnectorId, label: local.name, icon: local.icon },
+                    ...destinations.map((d) => ({ value: d.id, label: d.name, icon: d.icon })),
                   ]}
                   value={destination}
                   onValueChange={setChosen}
