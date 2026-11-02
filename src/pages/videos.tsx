@@ -108,10 +108,13 @@ function VideoList() {
 function VideoDetail({ id }: { id: number }) {
   const [recording, setRecording] = useState<Recording | null>();
   const [blob, setBlob] = useState<Blob>();
+  // The row is there but has no video, e.g. the window closed before the first chunk was written.
+  const [empty, setEmpty] = useState(false);
 
   const load = useCallback(async () => {
     const [row, data] = await Promise.all([getRecording(id), getRecordingBlob(id)]);
     setRecording(row && data ? row : null);
+    setEmpty(!!row && !data);
     setBlob(data);
   }, [id]);
   useEffect(() => {
@@ -122,11 +125,23 @@ function VideoDetail({ id }: { id: number }) {
     return (
       <Card className="mx-auto my-auto w-full max-w-xl">
         <CardHeader>
-          <CardTitle>Video not found</CardTitle>
-          <CardDescription>It may have been deleted, or replaced by newer recordings.</CardDescription>
+          <CardTitle>{empty ? 'Nothing was recorded' : 'Video not found'}</CardTitle>
+          <CardDescription>
+            {empty
+              ? 'The recording ended before any video was saved.'
+              : 'It may have been deleted, or replaced by newer recordings.'}
+          </CardDescription>
         </CardHeader>
-        <CardContent>
+        <CardContent className="flex justify-between gap-2">
           <BackButton />
+          {empty && (
+            <Button
+              variant="destructive"
+              onClick={() => void deleteRecording(id).then(() => navigate('/videos'))}
+            >
+              <Trash2 /> Delete
+            </Button>
+          )}
         </CardContent>
       </Card>
     );
