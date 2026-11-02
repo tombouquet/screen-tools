@@ -5,6 +5,7 @@
 // progress and links survive a reload and an interrupted one can carry on.
 import { openDB, type DBSchema } from 'idb';
 import type { ConnectorId, MediaKind, UploadResult } from './connectors/types';
+import type { Transcript } from './transcribe/transcript';
 
 export const MAX_RECORDINGS = 5;
 export const MAX_SCREENSHOTS = 10;
@@ -88,9 +89,11 @@ interface Schema extends DBSchema {
   chunks: { key: number; value: { recording: number; data: Blob }; indexes: { recording: number } };
   screenshots: { key: number; value: ScreenshotRow };
   uploads: { key: number; value: UploadRow; indexes: { source: [UploadSourceKind, number] } };
+  /** A recording's transcript, keyed by the recording's id. */
+  transcripts: { key: number; value: Transcript };
 }
 
-const db = openDB<Schema>('screen-tools', 2, {
+const db = openDB<Schema>('screen-tools', 3, {
   upgrade(database, oldVersion) {
     // Each step only adds, so data from older versions is kept.
     if (oldVersion < 1) {
@@ -101,6 +104,10 @@ const db = openDB<Schema>('screen-tools', 2, {
     if (oldVersion < 2) {
       // Rows without a source have no key for this index, so they're left out of it.
       database.createObjectStore('uploads', { autoIncrement: true }).createIndex('source', ['sourceKind', 'sourceId']);
+    }
+    if (oldVersion < 3) {
+      // Out-of-line keys: each transcript is stored under its recording's id.
+      database.createObjectStore('transcripts');
     }
   },
 });
@@ -150,12 +157,25 @@ export async function replaceRecordingBlob(id: number, blob: Blob): Promise<void
 
 export async function deleteRecording(id: number): Promise<void> {
   const database = await db;
-  const tx = database.transaction(['recordings', 'chunks', 'uploads'], 'readwrite');
+  const tx = database.transaction(['recordings', 'chunks', 'uploads', 'transcripts'], 'readwrite');
   const chunks = tx.objectStore('chunks');
   for (const key of await chunks.index('recording').getAllKeys(id)) await chunks.delete(key);
   const uploads = tx.objectStore('uploads');
   for (const key of await uploads.index('source').getAllKeys(['recording', id])) await uploads.delete(key);
+  await tx.objectStore('transcripts').delete(id);
   await tx.objectStore('recordings').delete(id);
+  await tx.done;
+}
+
+export async function getTranscript(recording: number): Promise<Transcript | undefined> {
+  return (await db).get('transcripts', recording);
+}
+
+/** Stores a recording's transcript, replacing any earlier one. Skipped if the recording was deleted meanwhile. */
+export async function saveTranscript(recording: number, transcript: Transcript): Promise<void> {
+  const database = await db;
+  const tx = database.transaction(['recordings', 'transcripts'], 'readwrite');
+  if (await tx.objectStore('recordings').get(recording)) await tx.objectStore('transcripts').put(transcript, recording);
   await tx.done;
 }
 

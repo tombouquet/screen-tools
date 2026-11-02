@@ -1,4 +1,6 @@
 import {
+  Captions,
+  CaptionsOff,
   Maximize,
   Minimize,
   Pause,
@@ -11,7 +13,7 @@ import {
   VolumeX,
   type LucideIcon,
 } from 'lucide-react';
-import { useCallback, useEffect, useRef, useState, type KeyboardEvent, type PointerEvent } from 'react';
+import { useCallback, useEffect, useRef, useState, type KeyboardEvent, type PointerEvent, type Ref } from 'react';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { formatDuration } from '@/lib/formats';
 import { cn } from '@/lib/utils';
@@ -29,13 +31,26 @@ const formatTime = (seconds: number) => formatDuration(seconds * 1000);
  * while it plays and come back when the pointer moves.
  *
  * Keys, unless focus is in a form field: space or K plays and pauses, ←/→ skip, M
- * mutes, F goes full screen.
+ * mutes, F goes full screen, C turns captions on and off.
+ *
+ * `captions` is WebVTT text, e.g. from a transcript; it adds a CC button. `videoRef`
+ * gets the video element, for a transcript panel that follows and seeks it.
  *
  * `durationMs` is the length the recorder measured. A WebM straight from MediaRecorder
  * has no duration in its header until it's made seekable, so it's shown until the
  * browser works the real one out.
  */
-export function RecordedVideo({ blob, durationMs }: { blob: Blob; durationMs?: number }) {
+export function RecordedVideo({
+  blob,
+  durationMs,
+  captions,
+  videoRef,
+}: {
+  blob: Blob;
+  durationMs?: number;
+  captions?: string;
+  videoRef?: Ref<HTMLVideoElement>;
+}) {
   const frame = useRef<HTMLDivElement>(null);
   const video = useRef<HTMLVideoElement>(null);
   const [url, setUrl] = useState<string>();
@@ -51,6 +66,9 @@ export function RecordedVideo({ blob, durationMs }: { blob: Blob; durationMs?: n
   const idleTimer = useRef<number>(undefined);
   // True while the length of a header-less WebM is being found; its seeks aren't real.
   const findingDuration = useRef(false);
+  const [captionsUrl, setCaptionsUrl] = useState<string>();
+  const [captionsOn, setCaptionsOn] = useState(false);
+  const track = useRef<HTMLTrackElement>(null);
   const pipSupported = typeof document !== 'undefined' && 'pictureInPictureEnabled' in document && document.pictureInPictureEnabled;
 
   useEffect(() => {
@@ -59,6 +77,41 @@ export function RecordedVideo({ blob, durationMs }: { blob: Blob; durationMs?: n
     setTime(0);
     return () => URL.revokeObjectURL(next);
   }, [blob]);
+
+  useEffect(() => {
+    if (!captions) {
+      setCaptionsUrl(undefined);
+      return;
+    }
+    const next = URL.createObjectURL(new Blob([captions], { type: 'text/vtt' }));
+    setCaptionsUrl(next);
+    return () => URL.revokeObjectURL(next);
+  }, [captions]);
+
+  // The track element is remade for each new file, so its mode is set again each time.
+  useEffect(() => {
+    const textTrack = track.current?.track;
+    if (!textTrack) return;
+    textTrack.mode = captionsOn ? 'showing' : 'hidden';
+    // Lift the captions above the control bar once the cues are in: their bottom edge
+    // sits at 75% of the height instead of the default, the very bottom.
+    const lift = () => {
+      for (const cue of Array.from(textTrack.cues ?? [])) {
+        if (!('line' in cue)) continue;
+        const vtt = cue as VTTCue;
+        vtt.snapToLines = false;
+        vtt.line = 75;
+        vtt.lineAlign = 'end';
+      }
+    };
+    lift();
+    const el = track.current;
+    el?.addEventListener('load', lift);
+    return () => el?.removeEventListener('load', lift);
+  }, [captionsUrl, captionsOn]);
+
+  const toggleCaptions = useCallback(() => setCaptionsOn((on) => !on), []);
+  const hasCaptions = captionsUrl !== undefined;
 
   // Smooth progress while playing; timeupdate only fires a few times a second.
   useEffect(() => {
@@ -146,13 +199,14 @@ export function RecordedVideo({ blob, durationMs }: { blob: Blob; durationMs?: n
       else if (key === 'arrowright') skip(SKIP_SECONDS);
       else if (key === 'm') toggleMute();
       else if (key === 'f') toggleFullscreen();
+      else if (key === 'c' && hasCaptions) toggleCaptions();
       else return;
       event.preventDefault();
       wake();
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [togglePlay, skip, toggleMute, toggleFullscreen, wake]);
+  }, [togglePlay, skip, toggleMute, toggleFullscreen, wake, hasCaptions, toggleCaptions]);
 
   const onLoadedMetadata = () => {
     const el = video.current;
@@ -199,7 +253,11 @@ export function RecordedVideo({ blob, durationMs }: { blob: Blob; durationMs?: n
       onFocus={wake}
     >
       <video
-        ref={video}
+        ref={(el) => {
+          video.current = el;
+          if (typeof videoRef === 'function') videoRef(el);
+          else if (videoRef) videoRef.current = el;
+        }}
         src={url}
         playsInline
         className="size-full object-contain"
@@ -220,7 +278,9 @@ export function RecordedVideo({ blob, durationMs }: { blob: Blob; durationMs?: n
           setVolume(video.current.volume);
           setMuted(video.current.muted);
         }}
-      />
+      >
+        {captionsUrl && <track key={captionsUrl} ref={track} kind="captions" src={captionsUrl} srcLang="und" label="Transcript" />}
+      </video>
 
       {!playing && (
         <button
@@ -290,6 +350,13 @@ export function RecordedVideo({ blob, durationMs }: { blob: Blob; durationMs?: n
               </TooltipTrigger>
               <TooltipContent>Playback speed</TooltipContent>
             </Tooltip>
+            {hasCaptions && (
+              <ControlButton
+                label={captionsOn ? 'Turn captions off (C)' : 'Turn captions on (C)'}
+                icon={captionsOn ? Captions : CaptionsOff}
+                onClick={toggleCaptions}
+              />
+            )}
             {pipSupported && <ControlButton label="Picture in picture" icon={PictureInPicture2} onClick={togglePip} />}
             <ControlButton
               label={fullscreen ? 'Exit full screen (F)' : 'Full screen (F)'}

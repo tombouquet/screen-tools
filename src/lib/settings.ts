@@ -3,6 +3,7 @@
 import { platform } from '@/platform';
 import type { ConnectorId } from './connectors/types';
 import { isFormatSupported } from './formats';
+import { TRANSCRIPTION_LANGUAGES, TRANSCRIPTION_MODELS, type TranscriptionLanguage, type TranscriptionModel } from './transcribe/models';
 
 export type CameraPosition = 'top-left' | 'top-right' | 'bottom-left' | 'bottom-right';
 export type CameraSize = 'small' | 'medium' | 'large';
@@ -80,6 +81,10 @@ export interface Settings {
   /** Ask for a public link when uploading. */
   shareLink: boolean;
   theme: Theme;
+  /** Whisper size for Transcribe. */
+  transcriptionModel: TranscriptionModel;
+  /** Spoken language, or 'auto' to let the model detect it. */
+  transcriptionLanguage: TranscriptionLanguage;
 }
 
 export const DEFAULT_SETTINGS: Settings = {
@@ -104,6 +109,8 @@ export const DEFAULT_SETTINGS: Settings = {
   saveDestination: 'local',
   shareLink: true,
   theme: 'system',
+  transcriptionModel: 'base',
+  transcriptionLanguage: 'auto',
 };
 
 const STORAGE_KEY = 'settings';
@@ -144,6 +151,8 @@ function sanitize(raw: Partial<Record<keyof Settings | 'askFileName', unknown>>)
         : oneOf(raw.saveDestination, CONNECTOR_IDS, d.saveDestination),
     shareLink: typeof raw.shareLink === 'boolean' ? raw.shareLink : d.shareLink,
     theme: oneOf(raw.theme, ['light', 'dark', 'system'], d.theme),
+    transcriptionModel: oneOf(raw.transcriptionModel, TRANSCRIPTION_MODELS, d.transcriptionModel),
+    transcriptionLanguage: oneOf(raw.transcriptionLanguage, TRANSCRIPTION_LANGUAGES.map((l) => l.id), d.transcriptionLanguage),
   };
 }
 

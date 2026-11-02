@@ -29,7 +29,19 @@ const uploadPermissions = {
     // host is asked for, when it's added (src/lib/connectors/upload-server.ts).
     'http://*/*',
     'https://*/*',
+    // The speech model for Transcribe, asked for on its first download
+    // (MODEL_HOSTS in src/lib/transcribe/models.ts). Covered by https://*/* too; listed
+    // so it's clear what transcription can reach.
+    'https://huggingface.co/*',
+    'https://*.huggingface.co/*',
+    'https://*.hf.co/*',
   ],
+};
+
+// Transcription runs Whisper in WebAssembly (onnxruntime-web), which needs
+// 'wasm-unsafe-eval'. Its .wasm files are bundled; nothing loads code from elsewhere.
+const content_security_policy = {
+  extension_pages: "script-src 'self' 'wasm-unsafe-eval'; object-src 'self';",
 };
 
 export default defineConfig({
@@ -39,6 +51,8 @@ export default defineConfig({
   manifestVersion: 3,
   vite: () => ({
     plugins: [tailwindcss()],
+    // The transcription worker lazy-loads chunks, which only ES module workers can do.
+    worker: { format: 'es' },
   }),
   manifest: ({ browser }) =>
     browser === 'firefox'
@@ -48,6 +62,7 @@ export default defineConfig({
           // Firefox has no desktopCapture; the recorder uses getDisplayMedia instead.
           permissions: ['storage', 'notifications', 'activeTab', 'scripting'],
           ...uploadPermissions,
+          content_security_policy,
           action: { default_title: name },
           // Firefox ignores options_page.
           options_ui: { page: optionsPage, open_in_tab: true },
@@ -66,6 +81,7 @@ export default defineConfig({
           minimum_chrome_version: '116',
           permissions: ['desktopCapture', 'storage', 'notifications', 'activeTab', 'scripting'],
           ...uploadPermissions,
+          content_security_policy,
           action: { default_title: name },
           options_page: optionsPage,
           // The store listing's public key, so unpacked dev builds get the same extension ID

@@ -1,4 +1,4 @@
-import { Camera, Check, CloudUpload, Film, Image, Mic, Palette, Rocket } from 'lucide-react';
+import { Camera, Captions, Check, CloudUpload, Film, Image, Mic, Palette, Rocket } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 import { useCallback, useEffect, useState } from 'react';
 import { AppearanceSection } from '@/components/settings/appearance-section';
@@ -7,6 +7,7 @@ import { GetStartedSection, setupSteps } from '@/components/settings/get-started
 import { MicrophoneSection } from '@/components/settings/microphone-section';
 import { RecordingSection } from '@/components/settings/recording-section';
 import { ScreenshotsSection } from '@/components/settings/screenshots-section';
+import { TranscriptionSection } from '@/components/settings/transcription-section';
 import { UploadsSection } from '@/components/settings/uploads-section';
 import { navigate } from '@/hooks/use-route';
 import { useSettings } from '@/hooks/use-settings';
@@ -21,6 +22,7 @@ const SECTIONS = [
   { id: 'microphone', label: 'Microphone', icon: Mic },
   { id: 'recording', label: 'Recording', icon: Film },
   { id: 'screenshots', label: 'Screenshots', icon: Image },
+  { id: 'transcription', label: 'Transcription', icon: Captions },
   { id: 'uploads', label: 'Uploads', icon: CloudUpload },
   { id: 'appearance', label: 'Appearance', icon: Palette },
 ] as const satisfies readonly { id: string; label: string; icon: LucideIcon }[];
@@ -118,6 +120,7 @@ export function SettingsPage({ section }: { section?: string }) {
         )}
         {active === 'recording' && <RecordingSection settings={settings} />}
         {active === 'screenshots' && <ScreenshotsSection settings={settings} />}
+        {active === 'transcription' && <TranscriptionSection settings={settings} />}
         {active === 'uploads' && <UploadsSection connections={connections} />}
         {active === 'appearance' && <AppearanceSection />}
       </div>

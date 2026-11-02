@@ -19,6 +19,8 @@ export interface PlatformCapabilities {
   tabCapture: boolean;
   /** The screen picker only opens from a click in the page, so the toolbar can't start a recording on its own. */
   screenPickerNeedsGesture: boolean;
+  /** Transcription may try WebGPU. Off where the browser's WebGPU can't run the model reliably (Firefox), which uses WebAssembly. */
+  webGpuTranscription: boolean;
 }
 
 export interface ScreenCaptureProvider {

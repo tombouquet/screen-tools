@@ -1,8 +1,9 @@
 import { ArrowLeft, Film, Gauge, Save, Trash2 } from 'lucide-react';
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { toast } from 'sonner';
 import { ConfirmDeleteDialog } from '@/components/confirm-dialog';
 import { RecordedVideo } from '@/components/recorded-video';
+import { PlayerWithTranscript, useTranscription } from '@/components/transcript-panel';
 import { LargeFileNotice, useSaveVideo } from '@/components/save-video';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -192,6 +193,8 @@ function RecordingView({
   const [optimizing, setOptimizing] = useState(false);
   const [confirmOpen, setConfirmOpen] = useState(false);
   const { save: saveVideo, dialog: saveDialog } = useSaveVideo();
+  const video = useRef<HTMLVideoElement>(null);
+  const transcription = useTranscription({ blob, recordingId: id, durationMs: recording.durationMs });
 
   const save = async (suggestCompression = false) => {
     const savedAs = await saveVideo(blob, recording.mimeType, defaultFileName(recording), { suggestCompression, recordingId: id });
@@ -238,7 +241,12 @@ function RecordingView({
       </CardHeader>
       <CardContent className="space-y-4">
         {blob.size > LARGE_FILE_BYTES && <LargeFileNotice size={blob.size} onCompress={() => void save(true)} />}
-        <RecordedVideo blob={blob} durationMs={recording.durationMs} />
+        <PlayerWithTranscript
+          player={<RecordedVideo blob={blob} durationMs={recording.durationMs} captions={transcription.captions} videoRef={video} />}
+          transcription={transcription}
+          video={video}
+          fileBase={defaultBase(recording)}
+        />
         <UploadList kind="recording" id={id} onUploaded={() => void markSaved()} />
         <div className="flex flex-wrap justify-between gap-2">
           <BackButton />
@@ -248,6 +256,7 @@ function RecordingView({
                 <Gauge /> {optimizing ? 'Optimizing…' : 'Make seekable'}
               </Button>
             )}
+            {transcription.button}
             <Button variant="destructive" onClick={() => setConfirmOpen(true)}>
               <Trash2 /> Delete
             </Button>

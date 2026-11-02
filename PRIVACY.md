@@ -2,7 +2,7 @@
 
 Screen Tools is a Chrome extension that records your screen and takes screenshots. This policy explains what it does with your data.
 
-Last updated: 2 November 2026.
+Last updated: 3 November 2026.
 
 ## Recordings and screenshots
 
@@ -32,10 +32,21 @@ You can also add an upload server of your own, or one run by your team, in Setti
 - The server's URL and any access token you enter are kept in the browser's local extension storage on your computer, and the token is only sent to that URL.
 - **Remove** in Settings forgets the server and gives back its host permission. Files already uploaded stay on the server.
 
+## Transcription
+
+Transcribing a video is optional and happens on your computer:
+
+- The speech model (OpenAI's Whisper, in the version published by the Hugging Face `onnx-community`) runs inside the browser. Your video and its sound are not sent anywhere.
+- The first time you click **Transcribe**, the extension asks for access to `huggingface.co` and `hf.co` and downloads the model from there. This is an optional permission, asked for only then. Hugging Face sees a normal download from your browser, with your IP address, like any download; it doesn't receive your video or audio.
+- The model is kept in the extension's browser storage on your computer, so later transcriptions don't download it again and work offline.
+- A recording's transcript is stored with the recording in the extension's storage and deleted with it. A transcript of a video opened in the player is only kept while that page is open.
+- **Delete downloaded model** in Settings → Transcription removes the model and gives back the Hugging Face permission.
+
 ## What we don't do
 
 - No analytics, tracking or advertising.
 - No servers of ours. Your files and tokens go only between your browser and Google, Dropbox or an upload server you added.
+- No online speech recognition. Transcripts are made on your computer.
 - We don't sell, share or transfer your data to anyone.
 
 ## Disconnecting

@@ -2,6 +2,7 @@ import { FileVideo, Gauge, Save, Upload, X } from 'lucide-react';
 import { useRef, useState } from 'react';
 import { toast } from 'sonner';
 import { RecordedVideo } from '@/components/recorded-video';
+import { PlayerWithTranscript, useTranscription } from '@/components/transcript-panel';
 import { LargeFileNotice, useSaveVideo } from '@/components/save-video';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -74,6 +75,9 @@ export function PlayerPage() {
 function FileView({ file, onChange, onClose }: { file: File; onChange: (file: File) => void; onClose: () => void }) {
   const [optimizing, setOptimizing] = useState(false);
   const { save: saveVideo, dialog: saveDialog } = useSaveVideo();
+  const video = useRef<HTMLVideoElement>(null);
+  // Not stored: the file isn't kept here, so its transcript lasts while it's open.
+  const transcription = useTranscription({ blob: file });
 
   const optimize = async () => {
     setOptimizing(true);
@@ -101,7 +105,12 @@ function FileView({ file, onChange, onClose }: { file: File; onChange: (file: Fi
             onCompress={() => void saveVideo(file, file.type, file.name, { suggestCompression: true })}
           />
         )}
-        <RecordedVideo blob={file} />
+        <PlayerWithTranscript
+          player={<RecordedVideo blob={file} captions={transcription.captions} videoRef={video} />}
+          transcription={transcription}
+          video={video}
+          fileBase={file.name.replace(/\.[^.]+$/, '')}
+        />
         <div className="flex flex-wrap justify-between gap-2">
           <Button variant="ghost" onClick={onClose}>
             <X /> Close
@@ -112,6 +121,7 @@ function FileView({ file, onChange, onClose }: { file: File; onChange: (file: Fi
                 <Gauge /> {optimizing ? 'Optimizing…' : 'Make seekable'}
               </Button>
             )}
+            {transcription.button}
             <Button onClick={() => void saveVideo(file, file.type, file.name)}>
               <Save /> Save video
             </Button>
