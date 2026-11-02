@@ -53,8 +53,21 @@ export function SettingsPage({ section }: { section?: string }) {
   const setupComplete = stepsDone === steps.length;
   // A plain #/settings opens the checklist until its checks are done. Picked once, so finishing
   // a check doesn't swap the section (and close the camera preview) mid-use.
-  const [fallback] = useState<SectionId>(() => (setup.cameraChecked && setup.micChecked ? 'camera' : 'get-started'));
+  const defaultSection: SectionId = setup.cameraChecked && setup.micChecked ? 'camera' : 'get-started';
+  const [fallback, setFallback] = useState<SectionId>(defaultSection);
+  // Picking a section moves on from the first view, so a later plain #/settings
+  // (the Settings link in the header) uses the up-to-date default.
+  useEffect(() => {
+    if (isSection(section)) setFallback(defaultSection);
+  }, [section, defaultSection]);
   const active: SectionId = isSection(section) ? section : fallback;
+  // Once everything is set up the checklist tab goes away, except while you're on it
+  // (so the "all set" moment stays put). Hidden while access is still being checked,
+  // so it doesn't flash in for people who finished it before.
+  const showGetStarted =
+    active === 'get-started' ||
+    !(setup.cameraChecked && setup.micChecked && (permission === undefined || permission.state === 'granted'));
+  const visibleSections = SECTIONS.filter((s) => s.id !== 'get-started' || showGetStarted);
 
   return (
     <div className="flex flex-col gap-6 md:flex-row md:items-start">
@@ -62,7 +75,7 @@ export function SettingsPage({ section }: { section?: string }) {
         aria-label="Settings"
         className="-mx-4 flex shrink-0 gap-1 overflow-x-auto px-4 pb-1 md:sticky md:top-4 md:mx-0 md:w-48 md:flex-col md:overflow-visible md:p-0"
       >
-        {SECTIONS.map(({ id, label, icon: Icon }) => (
+        {visibleSections.map(({ id, label, icon: Icon }) => (
           <button
             key={id}
             type="button"

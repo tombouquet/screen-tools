@@ -1,6 +1,7 @@
 import { ArrowRight, Camera, Check, CloudUpload, ExternalLink, Loader2, Mic, PartyPopper, Rocket, ShieldCheck, Video } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
-import { useEffect, useState, type ReactNode } from 'react';
+import confetti from 'canvas-confetti';
+import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { browser } from 'wxt/browser';
 import { CameraPreviewDialog } from '@/components/camera-preview-dialog';
 import { MicTest } from '@/components/mic-test';
@@ -39,6 +40,15 @@ export function GetStartedSection({
   const [previewOpen, setPreviewOpen] = useState(false);
   const allowed = permission?.state === 'granted';
   const connected = Boolean(connections?.some((c) => c.connector !== 'local'));
+
+  // Celebrate the moment the last check passes on this page. Not on load: the page
+  // starts "not done" until access is checked, so only count once that's known.
+  const wasDone = useRef<boolean>(undefined);
+  useEffect(() => {
+    if (!permission) return;
+    if (wasDone.current === false && allDone) celebrate();
+    wasDone.current = allDone;
+  }, [allDone, permission]);
 
   return (
     <div className="space-y-6">
@@ -234,4 +244,12 @@ function DeviceBadge({ label, ok }: { label: string; ok: boolean }) {
       {label}
     </Badge>
   );
+}
+
+/** Two bursts of confetti from the bottom corners. Skipped for people who prefer less motion. */
+function celebrate() {
+  if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+  const shared = { particleCount: 80, spread: 70, startVelocity: 55, ticks: 220, zIndex: 1000 };
+  void confetti({ ...shared, angle: 60, origin: { x: 0, y: 0.9 } });
+  void confetti({ ...shared, angle: 120, origin: { x: 1, y: 0.9 } });
 }

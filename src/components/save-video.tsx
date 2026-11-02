@@ -7,10 +7,10 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Progress } from '@/components/ui/progress';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
-import { OptionSelect } from '@/components/option-select';
 import { ShareSwitch, useConnectedDestinations } from '@/components/upload-dialog';
 import { showUploadedToast, uploadErrorMessage, UploadProgress } from '@/components/upload-status';
 import { navigate } from '@/hooks/use-route';
+import { DestinationList } from '@/components/destination-list';
 import { local } from '@/lib/connectors/local';
 import type { Connector, ConnectorId } from '@/lib/connectors/types';
 import {
@@ -287,15 +287,12 @@ function SaveDialog({ request, onDone }: { request: SaveRequest; onDone: (savedA
           ) : (
             <>
               <div className="grid gap-2">
-                <Label htmlFor="save-destination">Save to</Label>
-                <OptionSelect
-                  id="save-destination"
-                  items={[
-                    { value: 'local' as ConnectorId, label: local.name, icon: local.icon },
-                    ...destinations.map((d) => ({ value: d.id, label: d.name, icon: d.icon })),
-                  ]}
+                <Label>Save to</Label>
+                <DestinationList
+                  label="Save to"
+                  destinations={[local, ...destinations]}
                   value={destination}
-                  onValueChange={setChosen}
+                  onChange={setChosen}
                 />
                 {destinations.length === 0 && (
                   <button
