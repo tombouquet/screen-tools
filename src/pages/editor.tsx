@@ -627,7 +627,10 @@ function Editor({ first, onBack }: { first: EditSource; onBack: () => void }) {
           <DialogContent className="sm:max-w-lg">
             <DialogHeader>
               <DialogTitle>Add a video</DialogTitle>
-              <DialogDescription>It's added at the end. Drag it by its name on the timeline to move it.</DialogDescription>
+              <DialogDescription>
+                It's added at the end; drag it by its name on the timeline to move it. It needs the same size and format as this
+                video, such as a recording made with the same settings.
+              </DialogDescription>
             </DialogHeader>
             <VideoPicker onRecording={addRecording} onFile={addFile} />
           </DialogContent>
