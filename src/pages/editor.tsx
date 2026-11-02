@@ -7,21 +7,25 @@ import {
   Download,
   FileVideo,
   Film,
+  Lightbulb,
   Loader2,
   Pause,
   Play,
   Plus,
   Redo2,
   Scissors,
+  SlidersHorizontal,
   Trash2,
   Undo2,
   Upload,
   Volume2,
   VolumeX,
+  X,
   ZoomIn,
 } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { toast } from 'sonner';
+import { ConfirmDeleteDialog } from '@/components/confirm-dialog';
 import { useEditPreview } from '@/components/edit-preview';
 import { ExportDialog } from '@/components/edit-export';
 import { useSaveVideo } from '@/components/save-video';
@@ -39,49 +43,73 @@ import { navigate } from '@/hooks/use-route';
 import { getRecording, getRecordingBlob, listRecordings, liveRecordingIds, type Recording } from '@/lib/db';
 import { pendingEditorFile } from '@/lib/edit/handoff';
 import {
-  changeSourceRanges,
   clipLength,
   clipStarts,
   cutRange,
+  cutSourceRanges,
   editLength,
   moveClip,
   newClip,
   removeClip,
-  setSpeed,
+  snapCutEnd,
   splitClipAt,
   trimClip,
   visibleRanges,
   type Edit,
   type Range,
+  type Snap,
 } from '@/lib/edit/model';
 import type { RenderResult } from '@/lib/edit/render';
-import { findSilences, loadSource, makeThumbnails, measureLoudness, type EditSource, type Loudness, type Thumbnail } from '@/lib/edit/source';
+import {
+  findSilences,
+  keyframeBefore,
+  loadSource,
+  makeThumbnails,
+  measureLoudness,
+  NotEditable,
+  type EditSource,
+  type Loudness,
+  type Thumbnail,
+} from '@/lib/edit/source';
 import { useHistory } from '@/lib/edit/use-history';
-import { fileExtension, formatBytes, formatDuration, isWebm, splitFileName } from '@/lib/formats';
+import { fileExtension, formatBytes, formatDuration, splitFileName } from '@/lib/formats';
 import { cn } from '@/lib/utils';
 
 const dateFormat = new Intl.DateTimeFormat(undefined, { dateStyle: 'medium', timeStyle: 'short' });
 const recordingName = (r: Recording) => r.name ?? dateFormat.format(new Date(r.date));
-const SPEEDS = [2, 4, 8] as const;
 const MAX_ZOOM = 400;
+/** Set once the editor's first-use tip is closed. */
+const TIPS_KEY = 'editor-tips-hidden';
 
 const isTyping = (target: EventTarget | null) =>
   target instanceof HTMLElement && (target.isContentEditable || ['INPUT', 'TEXTAREA', 'SELECT'].includes(target.tagName));
 
-async function loadRecording(id: number): Promise<EditSource> {
+async function loadRecording(id: number, joinTo?: EditSource): Promise<EditSource> {
   const [recording, blob, live] = await Promise.all([getRecording(id), getRecordingBlob(id), liveRecordingIds()]);
   if (live.has(id)) throw new Error("It's still being recorded in another window. Stop it there first.");
   if (!recording || !blob) throw new Error('It may have been deleted, or replaced by newer recordings.');
-  return loadSource(blob, recordingName(recording), {
-    recordingId: id,
-    seekable: !isWebm(recording.mimeType) || recording.seekable,
+  return loadSource(blob, recordingName(recording), { recordingId: id, joinTo });
+}
+
+const message = (reason: unknown) => (reason instanceof Error ? reason.message : String(reason));
+
+/** Says why a video can't be added to the edit, and what to do about it. */
+function refuseJoin(name: string, reason: unknown, toastId?: string | number) {
+  if (!(reason instanceof NotEditable)) {
+    toast.error(`Can't open ${name}`, { id: toastId, description: message(reason) });
+    return;
+  }
+  toast.error(`Can't add ${name}`, {
+    id: toastId,
+    duration: 12_000,
+    description: `${message(reason)} Videos can only be joined when they're the same size and format. Record them with the same recorder settings and try again.`,
   });
 }
 
 /** `/editor/:id` edits a stored recording; `/editor` edits the file the Player handed over. */
 export function EditorPage({ recordingId }: { recordingId?: number }) {
   const [first, setFirst] = useState<EditSource | null>();
-  const [error, setError] = useState<string>();
+  const [error, setError] = useState<{ text: string; editable: boolean }>();
 
   useEffect(() => {
     let stale = false;
@@ -96,7 +124,7 @@ export function EditorPage({ recordingId }: { recordingId?: number }) {
       (reason: unknown) => {
         if (stale) return;
         console.error(reason);
-        setError(reason instanceof Error ? reason.message : String(reason));
+        setError({ text: message(reason), editable: !(reason instanceof NotEditable) });
       },
     );
     return () => {
@@ -110,8 +138,8 @@ export function EditorPage({ recordingId }: { recordingId?: number }) {
     return (
       <Card className="mx-auto my-auto w-full max-w-xl">
         <CardHeader>
-          <CardTitle>Can't open this video</CardTitle>
-          <CardDescription>{error}</CardDescription>
+          <CardTitle>{error.editable ? "Can't open this video" : "Can't edit this video"}</CardTitle>
+          <CardDescription>{error.text}</CardDescription>
         </CardHeader>
         <CardContent>
           <Button variant="ghost" onClick={back}>
@@ -141,14 +169,14 @@ function PickVideo() {
     setOpening(true);
     loadSource(picked, picked.name).then(setFile, (reason: unknown) => {
       setOpening(false);
-      toast.error("Can't open this video", { description: reason instanceof Error ? reason.message : String(reason) });
+      toast.error(reason instanceof NotEditable ? "Can't edit this video" : "Can't open this video", { description: message(reason) });
     });
   };
   return (
     <Card className="mx-auto my-auto w-full max-w-xl">
       <CardHeader>
         <CardTitle>Video editor</CardTitle>
-        <CardDescription>Trim, cut, join and speed up quiet parts. Pick a recording or a video file to start.</CardDescription>
+        <CardDescription>Trim, cut, join videos and remove pauses. Pick a recording or a video file to start.</CardDescription>
       </CardHeader>
       <CardContent>
         {opening ? (
@@ -174,14 +202,19 @@ function Editor({ first, onBack }: { first: EditSource; onBack: () => void }) {
   const [measuring, setMeasuring] = useState<number>();
   const [thresholdDb, setThresholdDb] = useState(-45);
   const [minQuietS, setMinQuietS] = useState(2);
-  const [quietSpeed, setQuietSpeed] = useState<number>(4);
   const [adding, setAdding] = useState(false);
+  const [adjusting, setAdjusting] = useState(false);
+  const [leaving, setLeaving] = useState(false);
+  const [tipsHidden, setTipsHidden] = useState(() => localStorage.getItem(TIPS_KEY) === '1');
+  const hideTips = () => {
+    localStorage.setItem(TIPS_KEY, '1');
+    setTipsHidden(true);
+  };
   const [exporting, setExporting] = useState(false);
   const [exported, setExported] = useState<{ result: RenderResult; edit: Edit }>();
   const { save: saveVideo, dialog: saveDialog } = useSaveVideo();
   const preview = useEditPreview(edit, sources);
   const { time, total } = preview;
-  useBeforeUnload(history.canUndo);
 
   // Frame strips and loudness, made in the background for each new source.
   const started = useRef(new Set<string>());
@@ -214,11 +247,29 @@ function Editor({ first, onBack }: { first: EditSource; onBack: () => void }) {
   thumbsRef.current = thumbnails;
   useEffect(() => () => thumbsRef.current.forEach((list) => list.forEach((t) => t.image.close())), []);
 
-  // Quiet stretches still in the edit at normal speed, per source and on the timeline.
-  const quietBySource = useMemo(() => {
+  /** Every cut resumes on a keyframe; see model.ts. */
+  const snap: Snap = useCallback((id, t) => {
+    const source = sources.get(id);
+    return source ? keyframeBefore(source, t) : t;
+  }, [sources]);
+
+  // Quiet stretches, per source and on the timeline. Each ends at the keyframe before the
+  // sound comes back, since that's where a cut can end; a stretch with no keyframe inside
+  // can't be cut and is left out (and counted).
+  const { quietBySource, uncuttable } = useMemo(() => {
     const map = new Map<string, Range[]>();
-    for (const [id, level] of loudness) map.set(id, findSilences(level, thresholdDb, minQuietS, sources.get(id)!.durationS));
-    return map;
+    let skipped = 0;
+    for (const [id, level] of loudness) {
+      const source = sources.get(id)!;
+      const ranges = findSilences(level, thresholdDb, minQuietS, source.durationS).flatMap((r) => {
+        const end = r.end >= source.durationS - 0.1 ? r.end : keyframeBefore(source, r.end);
+        if (end - r.start >= 0.1) return [{ start: r.start, end }];
+        skipped++;
+        return [];
+      });
+      map.set(id, ranges);
+    }
+    return { quietBySource: map, uncuttable: skipped };
   }, [loudness, thresholdDb, minQuietS, sources]);
   const quietOnTimeline = useMemo(
     () =>
@@ -238,8 +289,13 @@ function Editor({ first, onBack }: { first: EditSource; onBack: () => void }) {
     [history],
   );
 
-  const changeQuiet = (speed: number | null) =>
-    change((current) => [...quietBySource].reduce((acc, [id, ranges]) => changeSourceRanges(acc, id, ranges, speed), current));
+  const cutQuiet = () => change((current) => [...quietBySource].reduce((acc, [id, ranges]) => cutSourceRanges(acc, id, ranges, snap), current));
+
+  /** Applies a cut, or says why it can't be made. */
+  const cut = (next: Edit) => {
+    if (editLength(next) < editLength(edit) - 1e-6 || next.length !== edit.length) change(() => next);
+    else toast.info('This part is too short to cut', { description: 'Pick a slightly longer part. A cut ends at a ▼ mark on the timeline, so the video stays sharp.' });
+  };
 
   const clipAt = (t: number) => {
     const starts = clipStarts(edit);
@@ -248,24 +304,27 @@ function Editor({ first, onBack }: { first: EditSource; onBack: () => void }) {
   };
 
   const actions = {
-    split: () => change((e) => splitClipAt(e, time)),
+    split: () => {
+      const next = splitClipAt(edit, time, snap);
+      if (next !== edit) change(() => next);
+      else {
+        toast.info("Can't split here", {
+          description: 'Move the playhead past the next ▼ mark on the timeline. A clip can only start at one, so the video stays sharp.',
+        });
+      }
+    },
     trimStart: () => {
       const clip = clipAt(time);
-      if (clip && time > clip.start) change((e) => cutRange(e, { start: clip.start, end: time }));
+      if (clip && time > clip.start) cut(cutRange(edit, { start: clip.start, end: time }, snap));
       if (clip) preview.seek(clip.start);
     },
     trimEnd: () => {
       const clip = clipAt(time);
-      if (clip && time < clip.end) change((e) => cutRange(e, { start: time, end: clip.end }));
+      if (clip && time < clip.end) cut(cutRange(edit, { start: time, end: clip.end }, snap));
     },
     remove: () => {
-      if (selection?.kind === 'range') change((e) => cutRange(e, selection));
+      if (selection?.kind === 'range') cut(cutRange(edit, selection, snap));
       else if (selection?.kind === 'clip') change((e) => removeClip(e, selection.id));
-    },
-    speed: (speed: number) => {
-      if (selection?.kind !== 'range') return;
-      history.set((e) => setSpeed(e, selection, speed));
-      setSelection(undefined);
     },
     move: (by: number) => {
       if (selection?.kind !== 'clip') return;
@@ -280,28 +339,30 @@ function Editor({ first, onBack }: { first: EditSource; onBack: () => void }) {
     setAdding(false);
     toast.success(`Added ${source.name}`, { description: 'It’s at the end of the timeline.' });
   };
+  // New clips must copy into the same file as the ones in the edit (they all match each other).
+  const joinTo = edit[0] && sources.get(edit[0].sourceId);
   const addFile = (file: File) => {
     if (!file.type.startsWith('video/')) {
       toast.error('Unsupported file type', { description: 'Pick a video file, such as WebM or MP4.' });
       return;
     }
     const id = toast.loading(`Opening ${file.name}…`);
-    loadSource(file, file.name).then(
+    loadSource(file, file.name, { joinTo }).then(
       (source) => {
         toast.dismiss(id);
         addSource(source);
       },
-      (reason: unknown) => toast.error("Can't open this video", { id, description: reason instanceof Error ? reason.message : String(reason) }),
+      (reason: unknown) => refuseJoin(file.name, reason, id),
     );
   };
-  const addRecording = (recordingId: number) => {
+  const addRecording = (recordingId: number, name: string) => {
     const id = toast.loading('Opening the recording…');
-    loadRecording(recordingId).then(
+    loadRecording(recordingId, joinTo).then(
       (source) => {
         toast.dismiss(id);
         addSource(source);
       },
-      (reason: unknown) => toast.error("Can't open this recording", { id, description: reason instanceof Error ? reason.message : String(reason) }),
+      (reason: unknown) => refuseJoin(name, reason, id),
     );
   };
 
@@ -318,6 +379,7 @@ function Editor({ first, onBack }: { first: EditSource; onBack: () => void }) {
     save(result);
   };
   const ready = exported?.edit === edit ? exported.result : undefined;
+  useBeforeUnload(history.canUndo && !ready);
 
   // Keys, unless typing or a dialog is open.
   const keys = useRef({ actions, preview, history, total });
@@ -355,6 +417,16 @@ function Editor({ first, onBack }: { first: EditSource; onBack: () => void }) {
   const clipIndex = selection?.kind === 'clip' ? edit.findIndex((c) => c.id === selection.id) : -1;
   const maxZoom = Math.max(1, Math.min(MAX_ZOOM, (total * MAX_PX_PER_S) / 1000));
 
+  const unsaved = history.canUndo && !ready;
+  const selectionNote =
+    selection?.kind !== 'range'
+      ? undefined
+      : !rangeSelected
+        ? 'This part is too short to cut. Drag a little further to the right.'
+        : selection.requestedEnd - selection.end > 0.01
+          ? `${formatSeconds(selection.end - selection.start)} selected. The striped bit stays: a cut ends at the nearest ▼ mark, so the video stays sharp.`
+          : `${formatSeconds(selection.end - selection.start)} selected.`;
+
   return (
     <div
       className="flex flex-col gap-3"
@@ -367,7 +439,7 @@ function Editor({ first, onBack }: { first: EditSource; onBack: () => void }) {
       }}
     >
       <div className="flex flex-wrap items-center gap-2">
-        <Button variant="ghost" onClick={onBack}>
+        <Button variant="ghost" onClick={() => (unsaved ? setLeaving(true) : onBack())}>
           <ArrowLeft /> Back
         </Button>
         <div className="min-w-0 flex-1">
@@ -377,6 +449,12 @@ function Editor({ first, onBack }: { first: EditSource; onBack: () => void }) {
             {edit.length > 1 && ` · ${edit.length} clips`}. The original stays as it is.
           </p>
         </div>
+        <ToolButton label="Undo" shortcut="⌘Z" onClick={history.undo} disabled={!history.canUndo}>
+          <Undo2 />
+        </ToolButton>
+        <ToolButton label="Redo" shortcut="⇧⌘Z" onClick={history.redo} disabled={!history.canRedo}>
+          <Redo2 />
+        </ToolButton>
         <Button variant="outline" onClick={() => setAdding(true)}>
           <Plus /> Add video
         </Button>
@@ -404,51 +482,34 @@ function Editor({ first, onBack }: { first: EditSource; onBack: () => void }) {
           {formatClock(time)} / {formatClock(total)}
         </span>
         <Separator orientation="vertical" className="mx-1 h-6" />
-        <IconButton label="Split at playhead (S)" onClick={actions.split} disabled={!clipAt(time)}>
+        <ToolButton label="Split here" shortcut="S" onClick={actions.split} disabled={!clipAt(time)}>
           <Scissors />
-        </IconButton>
-        <IconButton label="Trim start to playhead ([)" onClick={actions.trimStart} disabled={!total}>
+        </ToolButton>
+        <ToolButton label="Trim start here" shortcut="[" onClick={actions.trimStart} disabled={!total}>
           <ArrowLeftToLine />
-        </IconButton>
-        <IconButton label="Trim end to playhead (])" onClick={actions.trimEnd} disabled={!total}>
+        </ToolButton>
+        <ToolButton label="Trim end here" shortcut="]" onClick={actions.trimEnd} disabled={!total}>
           <ArrowRightToLine />
-        </IconButton>
-        <IconButton
-          label={selection?.kind === 'clip' ? 'Delete clip (Delete)' : 'Delete selection (Delete)'}
+        </ToolButton>
+        <ToolButton
+          label={selection?.kind === 'clip' ? 'Delete clip' : 'Delete selection'}
+          shortcut="Delete"
           onClick={actions.remove}
           disabled={!rangeSelected && clipIndex < 0}
         >
           <Trash2 />
-        </IconButton>
-        {rangeSelected && (
-          <>
-            <Separator orientation="vertical" className="mx-1 h-6" />
-            <span className="text-muted-foreground px-1 text-xs">Speed</span>
-            {[1, ...SPEEDS].map((speed) => (
-              <Button key={speed} variant="ghost" size="sm" onClick={() => actions.speed(speed)}>
-                {speed}×
-              </Button>
-            ))}
-          </>
-        )}
+        </ToolButton>
         {clipIndex >= 0 && edit.length > 1 && (
           <>
             <Separator orientation="vertical" className="mx-1 h-6" />
-            <IconButton label="Move clip earlier" onClick={() => actions.move(-1)} disabled={clipIndex === 0}>
+            <ToolButton label="Move earlier" onClick={() => actions.move(-1)} disabled={clipIndex === 0}>
               <ChevronLeft />
-            </IconButton>
-            <IconButton label="Move clip later" onClick={() => actions.move(1)} disabled={clipIndex === edit.length - 1}>
+            </ToolButton>
+            <ToolButton label="Move later" onClick={() => actions.move(1)} disabled={clipIndex === edit.length - 1}>
               <ChevronRight />
-            </IconButton>
+            </ToolButton>
           </>
         )}
-        <Separator orientation="vertical" className="mx-1 h-6" />
-        <IconButton label="Undo (⌘Z)" onClick={history.undo} disabled={!history.canUndo}>
-          <Undo2 />
-        </IconButton>
-        <IconButton label="Redo (⇧⌘Z)" onClick={history.redo} disabled={!history.canRedo}>
-          <Redo2 />
-        </IconButton>
         <div className="ml-auto flex w-40 items-center gap-2 px-2">
           <ZoomIn className="text-muted-foreground size-4 shrink-0" />
           <Slider
@@ -480,7 +541,7 @@ function Editor({ first, onBack }: { first: EditSource; onBack: () => void }) {
           const clip = edit.find((c) => c.id === clipId);
           const source = clip && sources.get(clip.sourceId);
           if (!source) return;
-          const next = trimClip(edit, clipId, edge, sourceTime, source.durationS);
+          const next = trimClip(edit, clipId, edge, sourceTime, source.durationS, snap);
           history.set(next, { replace: true });
           // Show the frame at the new edge.
           const index = next.findIndex((c) => c.id === clipId);
@@ -488,65 +549,79 @@ function Editor({ first, onBack }: { first: EditSource; onBack: () => void }) {
           preview.seek(edge === 'start' ? start : start + clipLength(next[index]!) - 0.05);
         }}
         onMoveClip={(clipId, to) => history.set((e) => moveClip(e, clipId, to))}
+        snapCutEnd={(t) => snapCutEnd(edit, t, snap)}
       />
-      <p className="text-muted-foreground text-xs">
-        Click to move the playhead, drag across the timeline to select a part, and drag a clip's edges to trim it. S splits,
-        Delete removes the selection, ⌘Z undoes. Hold ⌘ or Ctrl and scroll to zoom. Drop a video here to add it.
-      </p>
+      {selectionNote ? (
+        <p className="text-muted-foreground text-xs">{selectionNote}</p>
+      ) : (
+        !tipsHidden && (
+          <div className="bg-muted/40 text-muted-foreground flex items-start gap-2 rounded-lg border px-3 py-2 text-xs">
+            <Lightbulb className="mt-0.5 size-3.5 shrink-0" />
+            <p className="flex-1">
+              Click the timeline to move the playhead, or drag across it to pick a part, then press <b>Delete selection</b>.
+              Drag a clip's edges to trim it. Hover a button to see its keyboard shortcut.
+            </p>
+            <button type="button" aria-label="Hide tip" className="hover:text-foreground -m-1 p-1" onClick={hideTips}>
+              <X className="size-3.5" />
+            </button>
+          </div>
+        )
+      )}
 
       {hasAudio && (
         <div className="bg-card space-y-3 rounded-lg border p-4">
           <div className="flex flex-wrap items-center justify-between gap-2">
             <div>
-              <h3 className="text-sm font-medium">Quiet parts</h3>
+              <h3 className="text-sm font-medium">Pauses</h3>
               <p className="text-muted-foreground text-xs">
                 {measuring !== undefined
-                  ? `Listening for quiet parts… ${Math.round(measuring * 100)}%`
+                  ? `Looking for pauses… ${Math.round(measuring * 100)}%`
                   : quietOnTimeline.length
-                    ? `${quietOnTimeline.length} quiet ${quietOnTimeline.length === 1 ? 'part' : 'parts'}, ${formatClock(quietTotal)} in total, marked in yellow. Click one to select it, or change them all here. Sped-up parts are muted.`
-                    : 'No quiet parts left at these settings.'}
+                    ? `Found ${quietOnTimeline.length} ${quietOnTimeline.length === 1 ? 'pause' : 'pauses'}, ${quietTotal < 60 ? formatSeconds(quietTotal) : formatDuration(quietTotal * 1000)} in total, marked in yellow. Click one to pick it, or remove them all.`
+                    : 'No pauses found.'}
+                {measuring === undefined &&
+                  uncuttable > 0 &&
+                  ` ${uncuttable} short ${uncuttable === 1 ? "pause can't" : "pauses can't"} be removed without making the video blurry, so ${uncuttable === 1 ? "it's" : "they're"} left in.`}
               </p>
             </div>
             <div className="flex flex-wrap items-center gap-2">
-              <div className="flex items-center rounded-md border" role="radiogroup" aria-label="Speed for quiet parts">
-                {SPEEDS.map((speed) => (
-                  <button
-                    key={speed}
-                    type="button"
-                    role="radio"
-                    aria-checked={quietSpeed === speed}
-                    onClick={() => setQuietSpeed(speed)}
-                    className={cn('px-2 py-1 text-xs', quietSpeed === speed ? 'bg-accent font-medium' : 'text-muted-foreground')}
-                  >
-                    {speed}×
-                  </button>
-                ))}
+              <Button size="sm" variant="ghost" aria-expanded={adjusting} onClick={() => setAdjusting(!adjusting)}>
+                <SlidersHorizontal /> Adjust
+              </Button>
+              <Button size="sm" variant="outline" disabled={!quietOnTimeline.length} onClick={cutQuiet}>
+                <Scissors /> Remove pauses
+              </Button>
+            </div>
+          </div>
+          {adjusting && (
+            <div className="grid gap-4 sm:grid-cols-2">
+              <div className="grid gap-2">
+                <Label className="text-xs font-normal">How quiet</Label>
+                <Slider aria-label="How quiet" min={-70} max={-20} step={1} value={thresholdDb} onValueChange={(v) => setThresholdDb(typeof v === 'number' ? v : v[0]!)} />
+                <span className="text-muted-foreground flex justify-between text-[11px]">
+                  <span>Silence only</span>
+                  <span>Soft sounds too</span>
+                </span>
               </div>
-              <Button size="sm" variant="outline" disabled={!quietOnTimeline.length} onClick={() => changeQuiet(quietSpeed)}>
-                Speed up all
-              </Button>
-              <Button size="sm" variant="outline" disabled={!quietOnTimeline.length} onClick={() => changeQuiet(null)}>
-                Cut all
-              </Button>
+              <div className="grid gap-2">
+                <Label className="flex justify-between text-xs font-normal">
+                  Shortest pause <span className="tabular-nums">{formatSeconds(minQuietS)}</span>
+                </Label>
+                <Slider aria-label="Shortest pause" min={0.5} max={10} step={0.5} value={minQuietS} onValueChange={(v) => setMinQuietS(typeof v === 'number' ? v : v[0]!)} />
+              </div>
             </div>
-          </div>
-          <div className="grid gap-4 sm:grid-cols-2">
-            <div className="grid gap-2">
-              <Label className="flex justify-between text-xs font-normal">
-                Quieter than <span className="tabular-nums">{thresholdDb} dB</span>
-              </Label>
-              <Slider aria-label="Quieter than" min={-70} max={-20} step={1} value={thresholdDb} onValueChange={(v) => setThresholdDb(typeof v === 'number' ? v : v[0]!)} />
-            </div>
-            <div className="grid gap-2">
-              <Label className="flex justify-between text-xs font-normal">
-                For at least <span className="tabular-nums">{minQuietS.toFixed(1)} s</span>
-              </Label>
-              <Slider aria-label="For at least" min={0.5} max={10} step={0.5} value={minQuietS} onValueChange={(v) => setMinQuietS(typeof v === 'number' ? v : v[0]!)} />
-            </div>
-          </div>
+          )}
         </div>
       )}
 
+      <ConfirmDeleteDialog
+        open={leaving}
+        onOpenChange={setLeaving}
+        onConfirm={onBack}
+        title="Leave without saving?"
+        description="Your edits haven't been exported, so they'll be lost. The original video stays as it is."
+        confirmLabel="Leave"
+      />
       {adding && (
         <Dialog open onOpenChange={(open) => !open && setAdding(false)}>
           <DialogContent className="sm:max-w-lg">
@@ -572,13 +647,15 @@ function editSourceLength(edit: Edit, sources: Map<string, EditSource>): number 
   }, 0);
 }
 
+const formatSeconds = (seconds: number) => `${seconds.toFixed(1)} s`;
+
 const formatClock = (seconds: number) => {
   const tenths = Math.floor((seconds % 1) * 10);
   return `${formatDuration(seconds * 1000)}.${tenths}`;
 };
 
 /** Stored recordings to pick from, and a file picker. */
-function VideoPicker({ onRecording, onFile }: { onRecording: (id: number) => void; onFile: (file: File) => void }) {
+function VideoPicker({ onRecording, onFile }: { onRecording: (id: number, name: string) => void; onFile: (file: File) => void }) {
   const [recordings, setRecordings] = useState<Recording[]>();
   const [live, setLive] = useState(new Set<number>());
   const [dragging, setDragging] = useState(false);
@@ -599,7 +676,7 @@ function VideoPicker({ onRecording, onFile }: { onRecording: (id: number) => voi
               <button
                 type="button"
                 disabled={live.has(r.id)}
-                onClick={() => onRecording(r.id)}
+                onClick={() => onRecording(r.id, recordingName(r))}
                 className="hover:bg-accent flex w-full items-center gap-3 rounded-md px-2 py-2 text-left disabled:opacity-50"
               >
                 <span className="bg-muted flex aspect-video w-20 shrink-0 items-center justify-center overflow-hidden rounded border">
@@ -653,6 +730,38 @@ function VideoPicker({ onRecording, onFile }: { onRecording: (id: number) => voi
         }}
       />
     </div>
+  );
+}
+
+/** A labelled toolbar button; the tooltip shows its keyboard shortcut. */
+function ToolButton({
+  label,
+  shortcut,
+  disabled,
+  onClick,
+  children,
+}: {
+  label: string;
+  shortcut?: string;
+  disabled?: boolean;
+  onClick: () => void;
+  children: React.ReactNode;
+}) {
+  const button = <Button variant="ghost" size="sm" disabled={disabled} onClick={onClick} />;
+  if (!shortcut) {
+    return (
+      <Button variant="ghost" size="sm" disabled={disabled} onClick={onClick}>
+        {children} {label}
+      </Button>
+    );
+  }
+  return (
+    <Tooltip>
+      <TooltipTrigger render={button}>
+        {children} {label}
+      </TooltipTrigger>
+      <TooltipContent>Shortcut: {shortcut}</TooltipContent>
+    </Tooltip>
   );
 }
 

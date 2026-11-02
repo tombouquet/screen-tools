@@ -4,7 +4,11 @@ import { clipLength, clipStarts, editLength, placeSegments, type Edit, type Rang
 import type { EditSource, Loudness, Thumbnail } from '@/lib/edit/source';
 import { cn } from '@/lib/utils';
 
-export type Selection = { kind: 'range'; start: number; end: number } | { kind: 'clip'; id: string };
+/**
+ * A range of the result, or a clip. A range's `end` is where the cut really ends: the
+ * keyframe at or before `requestedEnd`, where the pointer let go.
+ */
+export type Selection = { kind: 'range'; start: number; end: number; requestedEnd: number } | { kind: 'clip'; id: string };
 
 const RULER_H = 22;
 const TRACK_H = 84;
@@ -34,14 +38,16 @@ export interface TimelineProps {
   onTrimStart: () => void;
   onTrim: (clipId: string, edge: 'start' | 'end', sourceTime: number) => void;
   onMoveClip: (clipId: string, toIndex: number) => void;
+  /** Where a cut ending at this time really ends (see `snapCutEnd`). */
+  snapCutEnd: (time: number) => number;
 }
 
 /**
- * The edit as a strip: a ruler, then the clips with a frame strip and the sound's
- * waveform, sped-up parts striped, and quiet stretches marked. Click to move the
- * playhead, drag across to select a range, drag a clip's edge to trim it, and drag a
- * clip by its name to move it. The frames and waveform are drawn on one canvas the size
- * of the visible part, so a long, zoomed-in recording stays light.
+ * The edit as a strip: a ruler, then the clips with a frame strip, the sound's waveform,
+ * keyframe ticks, and quiet stretches marked. Click to move the playhead, drag across to
+ * select a range, drag a clip's edge to trim it, and drag a clip by its name to move it.
+ * Range ends and start trims snap back to a keyframe, since the export can only resume
+ * there. The frames and waveform are drawn on one canvas the size of the visible part, so a long, zoomed-in recording stays light.
  */
 export function Timeline(props: TimelineProps) {
   const { edit, sources, time, zoom, selection } = props;
@@ -116,7 +122,7 @@ export function Timeline(props: TimelineProps) {
       if (x1 < 0 || x0 > view.width) continue;
       const source = sources.get(p.clip.sourceId);
       if (!source) continue;
-      const { start, end, speed } = p.segment;
+      const { start, end } = p.segment;
       ctx.save();
       ctx.beginPath();
       ctx.rect(x0, 0, x1 - x0, TRACK_H);
@@ -127,7 +133,7 @@ export function Timeline(props: TimelineProps) {
         const tile = Math.max(16, (THUMB_H * source.width) / source.height);
         const firstTile = Math.max(0, Math.floor(-x0 / tile));
         for (let k = firstTile, x = x0 + firstTile * tile; x < Math.min(x1, view.width); k++, x += tile) {
-          const sourceTime = Math.min(end, start + (((k + 0.5) * tile) / pxPerS) * speed);
+          const sourceTime = Math.min(end, start + ((k + 0.5) * tile) / pxPerS);
           const thumb = nearest(thumbs, sourceTime);
           ctx.drawImage(thumb.image, x, 0, tile, THUMB_H);
         }
@@ -141,13 +147,33 @@ export function Timeline(props: TimelineProps) {
         ctx.fillStyle = waveColor;
         const mid = THUMB_H + WAVE_H / 2;
         for (let x = Math.max(0, Math.floor(x0)); x < Math.min(view.width, x1); x++) {
-          const s0 = start + ((x - x0) / pxPerS) * speed;
-          const s1 = start + ((x + 1 - x0) / pxPerS) * speed;
+          const s0 = start + (x - x0) / pxPerS;
+          const s1 = start + (x + 1 - x0) / pxPerS;
           let level = 0;
           const w1 = Math.min(loud.peak.length, Math.ceil(s1 / loud.windowS));
           for (let w = Math.max(0, Math.floor(s0 / loud.windowS)); w < w1; w++) level = Math.max(level, loud.peak[w]!);
           const h = Math.max(1, Math.min(1, level) * (WAVE_H - 4));
           ctx.fillRect(x, mid - h / 2, 1, h);
+        }
+      }
+
+      // Keyframes: small white ticks along the top, where a cut can end.
+      const keys = source.keyframes.filter((k) => k >= start && k < end);
+      if (keys.length && (keys.length < 2 || (keys[1]! - keys[0]!) * pxPerS >= 4)) {
+        for (const k of keys) {
+          const x = Math.round(x0 + (k - start) * pxPerS) + 0.5;
+          if (x < -5 || x > view.width + 5) continue;
+          ctx.fillStyle = 'rgba(255,255,255,0.45)';
+          ctx.fillRect(x - 0.5, 0, 1, THUMB_H);
+          ctx.beginPath();
+          ctx.moveTo(x - 5, 0);
+          ctx.lineTo(x + 5, 0);
+          ctx.lineTo(x, 8);
+          ctx.closePath();
+          ctx.fillStyle = '#ffffff';
+          ctx.strokeStyle = 'rgba(0,0,0,0.7)';
+          ctx.fill();
+          ctx.stroke();
         }
       }
       ctx.restore();
@@ -166,7 +192,9 @@ export function Timeline(props: TimelineProps) {
       if (!dragging && Math.abs(e.clientX - x0) < DRAG_PX) return;
       dragging = true;
       const t1 = toTime(e.clientX);
-      props.onSelect({ kind: 'range', start: Math.min(t0, t1), end: Math.max(t0, t1) });
+      const start = Math.min(t0, t1);
+      const requestedEnd = Math.max(t0, t1);
+      props.onSelect({ kind: 'range', start, end: Math.max(start, props.snapCutEnd(requestedEnd)), requestedEnd });
     };
     const up = () => {
       target.removeEventListener('pointermove', move);
@@ -207,7 +235,7 @@ export function Timeline(props: TimelineProps) {
     const x0 = event.clientX;
     props.onTrimStart();
     props.onSelect({ kind: 'clip', id: clip.id });
-    const move = (e: PointerEvent) => props.onTrim(clip.id, edge, from + ((e.clientX - x0) / pxPerS) * segment.speed);
+    const move = (e: PointerEvent) => props.onTrim(clip.id, edge, from + (e.clientX - x0) / pxPerS);
     const up = () => {
       target.removeEventListener('pointermove', move);
       target.removeEventListener('pointerup', up);
@@ -255,21 +283,8 @@ export function Timeline(props: TimelineProps) {
             className="text-primary pointer-events-none absolute top-0"
             style={{ left: view.left, width: view.width, height: TRACK_H }}
           />
-          {placed.map((p) =>
-            p.segment.speed !== 1 ? (
-              <div
-                key={`${p.clip.id}-${p.segmentIndex}`}
-                className="pointer-events-none absolute top-0 flex items-start justify-center overflow-hidden text-[10px] font-semibold text-white"
-                style={{
-                  left: p.at * pxPerS,
-                  width: p.length * pxPerS,
-                  height: TRACK_H,
-                  background: 'repeating-linear-gradient(135deg, rgba(0,0,0,0.45) 0 6px, rgba(0,0,0,0.25) 6px 12px)',
-                }}
-              >
-                {p.length * pxPerS > 24 && <span className="mt-4 rounded bg-black/60 px-1">{p.segment.speed}×</span>}
-              </div>
-            ) : (
+          {placed.map(
+            (p) =>
               p.segmentIndex > 0 && (
                 <div
                   key={`${p.clip.id}-${p.segmentIndex}`}
@@ -277,8 +292,7 @@ export function Timeline(props: TimelineProps) {
                   style={{ left: p.at * pxPerS, height: TRACK_H }}
                   title="Cut"
                 />
-              )
-            ),
+              ),
           )}
           {edit.map((clip, i) => {
             const left = starts[i]! * pxPerS;
@@ -289,7 +303,7 @@ export function Timeline(props: TimelineProps) {
                 key={clip.id}
                 className={cn(
                   'absolute top-0 rounded-md border-2',
-                  selected ? 'border-primary' : 'border-foreground/25',
+                  selected ? 'border-primary ring-primary/40 z-10 ring-2' : 'border-foreground/25',
                 )}
                 style={{ left, width: w, height: TRACK_H }}
                 onDragOver={(event) => event.dataTransfer.types.includes('application/x-screen-tools-clip') && event.preventDefault()}
@@ -319,13 +333,13 @@ export function Timeline(props: TimelineProps) {
             <button
               key={`${range.start}`}
               type="button"
-              title={`Quiet for ${(range.end - range.start).toFixed(1)} s. Click to select it.`}
-              aria-label={`Quiet part at ${tickLabel(range.start, 1)}`}
+              title={`Pause of ${(range.end - range.start).toFixed(1)} s. Click to pick it.`}
+              aria-label={`Pause at ${tickLabel(range.start, 1)}`}
               className="absolute bottom-0 border-x border-amber-500 bg-amber-400/35 hover:bg-amber-400/60"
               style={{ left: range.start * pxPerS, width: Math.max(2, (range.end - range.start) * pxPerS), height: WAVE_H }}
               onPointerDown={(event) => event.stopPropagation()}
               onClick={() => {
-                props.onSelect({ kind: 'range', start: range.start, end: range.end });
+                props.onSelect({ kind: 'range', start: range.start, end: range.end, requestedEnd: range.end });
                 props.onSeek(range.start);
               }}
             />
@@ -333,10 +347,25 @@ export function Timeline(props: TimelineProps) {
         </div>
 
         {selection?.kind === 'range' && (
-          <div
-            className="border-primary bg-primary/20 pointer-events-none absolute border-x-2"
-            style={{ left: selection.start * pxPerS, width: (selection.end - selection.start) * pxPerS, top: 0, height: RULER_H + TRACK_H + 4 }}
-          />
+          <>
+            <div
+              className="border-primary bg-primary/20 pointer-events-none absolute border-x-2"
+              style={{ left: selection.start * pxPerS, width: (selection.end - selection.start) * pxPerS, top: 0, height: RULER_H + TRACK_H + 4 }}
+            />
+            {selection.requestedEnd - selection.end > 0.01 && (
+              <div
+                title="This bit stays: a cut ends at the nearest ▼ mark, so the video stays sharp"
+                className="border-primary/70 pointer-events-none absolute border-y-2 border-r-2 border-dashed"
+                style={{
+                  left: selection.end * pxPerS,
+                  width: (selection.requestedEnd - selection.end) * pxPerS,
+                  top: 0,
+                  height: RULER_H + TRACK_H + 4,
+                  background: 'repeating-linear-gradient(135deg, rgba(127,127,127,0.25) 0 4px, transparent 4px 8px)',
+                }}
+              />
+            )}
+          </>
         )}
         <div
           className="pointer-events-none absolute top-0 w-0.5 bg-red-500"
@@ -358,7 +387,8 @@ function TrimHandle({ side, label, onPointerDown }: { side: 'start' | 'end'; lab
       title={label}
       onPointerDown={onPointerDown}
       className={cn(
-        'bg-primary/90 hover:bg-primary absolute top-0 flex h-full w-2.5 cursor-ew-resize items-center justify-center',
+        // A wider invisible area around the handle makes it easy to grab.
+        "bg-primary/90 hover:bg-primary absolute top-0 flex h-full w-3 cursor-ew-resize items-center justify-center before:absolute before:inset-y-0 before:-inset-x-2 before:content-['']",
         side === 'start' ? '-left-0.5 rounded-l-md' : '-right-0.5 rounded-r-md',
       )}
     >

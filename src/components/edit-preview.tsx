@@ -7,8 +7,7 @@ const END_SLACK_S = 1 / 60;
 
 /**
  * Plays the edited result before it's exported: one video element per source, with
- * the one in use shown. Playback jumps over cut parts and runs sped-up parts at their
- * speed with the sound off, like the export.
+ * the one in use shown. Playback jumps over cut parts, like the export.
  */
 export function useEditPreview(edit: Edit, sources: Map<string, EditSource>) {
   const videos = useRef(new Map<string, HTMLVideoElement>());
@@ -20,8 +19,8 @@ export function useEditPreview(edit: Edit, sources: Map<string, EditSource>) {
   const total = useMemo(() => editLength(edit), [edit]);
   // The segment playing now, as an index into `placed`.
   const index = useRef(0);
-  const live = useRef({ placed, total, muted, time });
-  live.current = { placed, total, muted, time };
+  const live = useRef({ placed, total, time });
+  live.current = { placed, total, time };
 
   const urls = useMemo(() => {
     const map = new Map<string, string>();
@@ -30,14 +29,6 @@ export function useEditPreview(edit: Edit, sources: Map<string, EditSource>) {
   }, [sources]);
   useEffect(() => () => urls.forEach((url) => URL.revokeObjectURL(url)), [urls]);
 
-  const apply = useCallback((i: number) => {
-    const p = live.current.placed[i];
-    if (!p) return;
-    const video = videos.current.get(p.clip.sourceId);
-    if (!video) return;
-    video.playbackRate = p.segment.speed;
-    video.muted = live.current.muted || p.segment.speed !== 1;
-  }, []);
 
   const pauseAll = () => videos.current.forEach((v) => v.pause());
 
@@ -61,10 +52,9 @@ export function useEditPreview(edit: Edit, sources: Map<string, EditSource>) {
       window.setTimeout(() => {
         if (video.seeking && Math.abs(video.currentTime - target) < 0.01) video.currentTime = target;
       }, 1000);
-      apply(index.current);
       if (keepPlaying) void video.play().catch(() => setPlaying(false));
     },
-    [edit, apply],
+    [edit],
   );
 
   const pause = useCallback(() => {
@@ -106,25 +96,20 @@ export function useEditPreview(edit: Edit, sources: Map<string, EditSource>) {
           setActive(next.clip.sourceId);
           void nextVideo.play().catch(() => setPlaying(false));
         }
-        apply(index.current);
         setTime(next.at);
       } else {
-        setTime(current.at + Math.max(0, t - current.segment.start) / current.segment.speed);
+        setTime(current.at + Math.max(0, t - current.segment.start));
       }
       raf = requestAnimationFrame(tick);
     };
     raf = requestAnimationFrame(tick);
     return () => cancelAnimationFrame(raf);
-  }, [playing, apply]);
+  }, [playing]);
 
   // An edit while playing changes what plays next: carry on from the same point.
   useEffect(() => {
     seek(Math.min(live.current.time, total), playing);
   }, [edit]);
-
-  useEffect(() => {
-    apply(index.current);
-  }, [muted, apply]);
 
   const element = (
     <div className="relative aspect-video w-full overflow-hidden rounded-lg bg-black">
@@ -137,6 +122,7 @@ export function useEditPreview(edit: Edit, sources: Map<string, EditSource>) {
           }}
           src={urls.get(source.id)}
           preload="auto"
+          muted={muted}
           playsInline
           onLoadedData={() => {
             // A seek made before the video had loaded may not stick: show the right frame now.

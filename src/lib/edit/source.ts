@@ -1,10 +1,43 @@
 // The videos an edit is made from, and what the timeline shows of them: a strip of
 // small frames and the loudness of the audio. Both are read with Mediabunny a little at
 // a time, so a long recording is never decoded into memory all at once.
-import { ALL_FORMATS, AudioBufferSink, BlobSource, BufferTarget, CanvasSink, Conversion, Input, Mp4OutputFormat, Output } from 'mediabunny';
+//
+// The export copies the compressed frames as they are, never re-encoding. So a video can
+// only be edited when its frames can be copied (no B-frames, a format MP4 or WebM can
+// hold), and only videos with the same format and size can be joined.
+import {
+  ALL_FORMATS,
+  AudioBufferSink,
+  BlobSource,
+  BufferTarget,
+  CanvasSink,
+  Conversion,
+  EncodedPacketSink,
+  Input,
+  Mp4OutputFormat,
+  Output,
+  type AudioCodec,
+  type InputVideoTrack,
+  type VideoCodec,
+} from 'mediabunny';
 import { isWebm } from '@/lib/formats';
 import { makeSeekable } from '@/lib/optimize';
 import { newId, type Range } from './model';
+
+/** What a copy needs to match: the compressed formats of the video and the sound. */
+export interface SourceFormat {
+  videoCodec: VideoCodec;
+  videoConfig: VideoDecoderConfig;
+  audioCodec: AudioCodec | null;
+  audioConfig: AudioDecoderConfig | null;
+}
+
+export type Container = 'mp4' | 'webm';
+
+const SUPPORTED: Record<Container, { video: string[]; audio: string[] }> = {
+  mp4: { video: ['avc', 'hevc', 'vp9', 'av1', 'vp8'], audio: ['aac', 'opus', 'mp3', 'vorbis', 'flac'] },
+  webm: { video: ['vp9', 'av1', 'vp8'], audio: ['opus', 'vorbis'] },
+};
 
 export interface EditSource {
   id: string;
@@ -18,9 +51,17 @@ export interface EditSource {
   width: number;
   height: number;
   hasAudio: boolean;
+  format: SourceFormat;
+  /** Where the video's keyframes are, in seconds, in order. Cuts can only resume on one. */
+  keyframes: number[];
   /** Set when it's a stored recording. */
   recordingId?: number;
 }
+
+/** Thrown when a video can't be edited or joined without re-encoding it. */
+export class NotEditable extends Error {}
+
+const UNSUPPORTED = "The editor can't work with this kind of video file. Recordings made with Screen Tools can always be edited.";
 
 export interface Thumbnail {
   /** Seconds into the source. */
@@ -39,11 +80,11 @@ export interface Loudness {
 
 export const SILENT_DB = -100;
 
-export async function loadSource(
-  blob: Blob,
-  name: string,
-  options: { recordingId?: number; durationMs?: number; seekable?: boolean } = {},
-): Promise<EditSource> {
+/**
+ * Opens a video for editing. Throws `NotEditable` when its frames can't be copied, or
+ * when `joinTo` is given and the two can't be copied into one file.
+ */
+export async function loadSource(blob: Blob, name: string, options: { recordingId?: number; joinTo?: EditSource } = {}): Promise<EditSource> {
   const mimeType = blob.type || 'video/mp4';
   const input = new Input({ source: new BlobSource(blob), formats: ALL_FORMATS });
   try {
@@ -52,6 +93,34 @@ export async function loadSource(
     const audio = await input.getPrimaryAudioTrack();
     const durationS = await input.computeDuration();
     if (!(durationS > 0)) throw new Error('This file has no length.');
+    const hasAudio = Boolean(audio && (await audio.canDecode()));
+
+    const videoCodec = await video.getCodec();
+    const videoConfig = await video.getDecoderConfig();
+    if (!videoCodec || !videoConfig) throw new NotEditable(UNSUPPORTED);
+    const sound = hasAudio ? audio : null;
+    const format: SourceFormat = {
+      videoCodec,
+      videoConfig,
+      audioCodec: sound && (await sound.getCodec()),
+      audioConfig: sound && (await sound.getDecoderConfig()),
+    };
+    const container = copyContainer(mimeType, format);
+    if (!container) {
+      throw new NotEditable(UNSUPPORTED);
+    }
+    if (await reordersFrames(video)) {
+      // B-frames: frames stored out of order, which a copied cut could break.
+      throw new NotEditable(
+        "This video was saved in a way the editor can't cut without lowering its quality. Recordings made with Screen Tools can always be edited.",
+      );
+    }
+    if (options.joinTo) {
+      const reason = whyNotJoinable(options.joinTo, { format, width: await video.getDisplayWidth(), height: await video.getDisplayHeight() });
+      if (reason) throw new NotEditable(reason);
+    }
+    const keyframes = await findKeyframes(video);
+
     // MediaRecorder's WebM has no duration or index, so the browser seeks it slowly or
     // not at all. The preview plays an indexed copy; the stored recording is left as it is.
     const previewBlob = isWebm(mimeType) ? await seekableCopy(blob, durationS) : blob;
@@ -64,12 +133,105 @@ export async function loadSource(
       durationS,
       width: await video.getDisplayWidth(),
       height: await video.getDisplayHeight(),
-      hasAudio: Boolean(audio && (await audio.canDecode())),
+      hasAudio,
+      format,
+      keyframes,
       recordingId: options.recordingId,
     };
   } finally {
     input.dispose();
   }
+}
+
+/** The container a copy of this source is written in: its own when it can hold the formats, else MP4. */
+export function copyContainer(mimeType: string, format: SourceFormat): Container | undefined {
+  const fits = (c: Container) =>
+    SUPPORTED[c].video.includes(format.videoCodec) && (!format.audioCodec || SUPPORTED[c].audio.includes(format.audioCodec));
+  if (isWebm(mimeType) && fits('webm')) return 'webm';
+  return fits('mp4') ? 'mp4' : undefined;
+}
+
+const bytes = (data: AllowSharedBufferSource | undefined) => {
+  if (!data) return undefined;
+  if (ArrayBuffer.isView(data)) return new Uint8Array(data.buffer, data.byteOffset, data.byteLength);
+  return new Uint8Array(data);
+};
+
+const sameBytes = (a?: Uint8Array, b?: Uint8Array) => (!a && !b) || (!!a && !!b && a.length === b.length && a.every((v, i) => v === b[i]));
+
+const CODEC_NAMES: Record<string, string> = {
+  avc: 'H.264',
+  hevc: 'H.265',
+  vp8: 'VP8',
+  vp9: 'VP9',
+  av1: 'AV1',
+};
+const codecName = (codec: string) => CODEC_NAMES[codec] ?? codec;
+
+type Shape = Pick<EditSource, 'format' | 'width' | 'height'>;
+
+/** Why two videos can't be copied into one file, or undefined when they can. */
+function whyNotJoinable(edit: Shape, added: Shape): string | undefined {
+  const [a, b] = [edit.format, added.format];
+  const [av, bv] = [a.videoConfig, b.videoConfig];
+  if (av.codedWidth !== bv.codedWidth || av.codedHeight !== bv.codedHeight || edit.width !== added.width || edit.height !== added.height) {
+    return `It's a different size (${added.width}×${added.height}) from this video (${edit.width}×${edit.height}).`;
+  }
+  if (a.videoCodec !== b.videoCodec || av.codec !== bv.codec || !sameBytes(bytes(av.description), bytes(bv.description))) {
+    return a.videoCodec === b.videoCodec
+      ? 'It was recorded with different video settings from this video.'
+      : `It's in a different video format (${codecName(b.videoCodec)}) from this video (${codecName(a.videoCodec)}).`;
+  }
+  if (!a.audioConfig !== !b.audioConfig) return a.audioConfig ? 'It has no sound and this video does.' : "It has sound and this video doesn't.";
+  if (
+    a.audioConfig &&
+    b.audioConfig &&
+    (a.audioCodec !== b.audioCodec ||
+      a.audioConfig.sampleRate !== b.audioConfig.sampleRate ||
+      a.audioConfig.numberOfChannels !== b.audioConfig.numberOfChannels ||
+      !sameBytes(bytes(a.audioConfig.description), bytes(b.audioConfig.description)))
+  ) {
+    return "Its sound was recorded with different settings from this video's.";
+  }
+  return undefined;
+}
+
+/** True when frames are stored out of display order (B-frames), which a copied cut could break. */
+async function reordersFrames(track: InputVideoTrack): Promise<boolean> {
+  const sink = new EncodedPacketSink(track);
+  let latest = -Infinity;
+  let seen = 0;
+  for await (const packet of sink.packets(undefined, undefined, { metadataOnly: true })) {
+    if (packet.timestamp < latest - 1e-6) return true;
+    latest = Math.max(latest, packet.timestamp);
+    if (++seen >= 300) break;
+  }
+  return false;
+}
+
+async function findKeyframes(track: InputVideoTrack): Promise<number[]> {
+  const sink = new EncodedPacketSink(track);
+  const times: number[] = [];
+  let packet = await sink.getFirstKeyPacket({ metadataOnly: true });
+  while (packet) {
+    times.push(packet.timestamp);
+    packet = await sink.getNextKeyPacket(packet, { metadataOnly: true });
+  }
+  return times.length ? times : [0];
+}
+
+/** The keyframe at or before a time of a source (or its first one). */
+export function keyframeBefore(source: EditSource, time: number): number {
+  const list = source.keyframes;
+  let lo = 0;
+  let hi = list.length - 1;
+  if (time < list[0]! + 1e-3) return list[0]!;
+  while (lo < hi) {
+    const mid = (lo + hi + 1) >> 1;
+    if (list[mid]! <= time + 1e-3) lo = mid;
+    else hi = mid - 1;
+  }
+  return list[lo]!;
 }
 
 /**
