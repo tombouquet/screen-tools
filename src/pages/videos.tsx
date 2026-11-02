@@ -22,6 +22,7 @@ import {
 import { fileExtension, formatBytes, formatDuration, isWebm, recordingFileName } from '@/lib/formats';
 import { LARGE_FILE_BYTES } from '@/lib/compress';
 import { makeSeekable } from '@/lib/optimize';
+import { makeThumbnail } from '@/lib/thumbnail';
 
 const dateFormat = new Intl.DateTimeFormat(undefined, { dateStyle: 'medium', timeStyle: 'short' });
 
@@ -29,8 +30,18 @@ export function VideosPage({ id }: { id?: number }) {
   return id === undefined ? <VideoList /> : <VideoDetail id={id} />;
 }
 
+/** What a recording is called: the name it was saved as, or when it was made. */
+const recordingTitle = (recording: Recording) => recording.name ?? dateFormat.format(new Date(recording.date));
+
+/** The file name the save dialog starts from. */
+const defaultFileName = (recording: Recording) =>
+  recording.name
+    ? `${recording.name}.${fileExtension(recording.mimeType)}`
+    : recordingFileName(new Date(recording.date), recording.mimeType);
+
 function VideoList() {
   const [recordings, setRecordings] = useState<Recording[]>();
+  const thumbnails = useThumbnails(recordings);
   useEffect(() => {
     void listRecordings().then(setRecordings);
   }, []);
@@ -63,10 +74,22 @@ function VideoList() {
                 className="hover:bg-accent flex w-full items-center gap-4 rounded-md px-3 py-3 text-left"
                 onClick={() => navigate(`/videos/${recording.id}`)}
               >
-                <Film className="text-muted-foreground size-5 shrink-0" />
-                <span className="flex-1">
-                  <span className="block font-medium">{dateFormat.format(new Date(recording.date))}</span>
+                <span className="bg-muted relative flex aspect-video w-28 shrink-0 items-center justify-center overflow-hidden rounded-md border">
+                  {thumbnails[recording.id] ? (
+                    <img src={thumbnails[recording.id]} alt="" className="size-full object-cover" />
+                  ) : (
+                    <Film className="text-muted-foreground size-5" />
+                  )}
+                  {recording.durationMs !== undefined && (
+                    <span className="absolute right-1 bottom-1 rounded bg-black/75 px-1 text-[10px] font-medium text-white tabular-nums">
+                      {formatDuration(recording.durationMs)}
+                    </span>
+                  )}
+                </span>
+                <span className="min-w-0 flex-1">
+                  <span className="block truncate font-medium">{recordingTitle(recording)}</span>
                   <span className="text-muted-foreground text-xs">
+                    {recording.name && `${dateFormat.format(new Date(recording.date))} · `}
                     {recording.durationMs !== undefined ? formatDuration(recording.durationMs) : 'Recovered'} ·{' '}
                     {fileExtension(recording.mimeType).toUpperCase()}
                   </span>
@@ -130,14 +153,15 @@ function RecordingView({
   const { save: saveVideo, dialog: saveDialog } = useSaveVideo();
 
   const save = async (suggestCompression = false) => {
-    const name = recordingFileName(new Date(recording.date), recording.mimeType);
-    if (!(await saveVideo(blob, recording.mimeType, name, { suggestCompression, recordingId: id }))) return;
-    await markSaved();
+    const savedAs = await saveVideo(blob, recording.mimeType, defaultFileName(recording), { suggestCompression, recordingId: id });
+    if (!savedAs) return;
+    // The save dialog stores a name that differs from the default; mirror it here.
+    await markSaved(savedAs !== defaultBase(recording) ? savedAs : undefined);
   };
-  // A finished upload counts as saving it.
-  const markSaved = async () => {
+  // A finished upload counts as saving it. A new name was already stored by the save dialog.
+  const markSaved = async (name?: string) => {
     await updateRecording(id, { saved: true });
-    onChange({ ...recording, saved: true });
+    onChange({ ...recording, saved: true, ...(name ? { name } : {}) });
   };
   const optimize = async () => {
     setOptimizing(true);
@@ -162,8 +186,9 @@ function RecordingView({
     <Card className="my-auto">
       <CardHeader className="flex flex-row items-center justify-between gap-4">
         <div className="space-y-1.5">
-          <CardTitle>{dateFormat.format(new Date(recording.date))}</CardTitle>
+          <CardTitle>{recordingTitle(recording)}</CardTitle>
           <CardDescription>
+            {recording.name && `${dateFormat.format(new Date(recording.date))} · `}
             {recording.durationMs !== undefined ? `${formatDuration(recording.durationMs)} · ` : ''}
             {fileExtension(recording.mimeType).toUpperCase()} · {formatBytes(blob.size)}
           </CardDescription>
@@ -203,4 +228,41 @@ function BackButton() {
       <ArrowLeft /> All videos
     </Button>
   );
+}
+
+/** The default file name without its extension, to tell whether the user changed it. */
+const defaultBase = (recording: Recording) => defaultFileName(recording).replace(/\.[^.]+$/, '');
+
+/**
+ * Object URLs of the recordings' thumbnails. Makes the missing ones one at a time,
+ * newest first, and keeps them on the recording so it's only done once.
+ */
+function useThumbnails(recordings: Recording[] | undefined): Record<number, string> {
+  const [urls, setUrls] = useState<Record<number, string>>({});
+  useEffect(() => {
+    if (!recordings) return;
+    let cancelled = false;
+    const made: string[] = [];
+    const show = (id: number, blob: Blob) => {
+      const url = URL.createObjectURL(blob);
+      made.push(url);
+      setUrls((current) => ({ ...current, [id]: url }));
+    };
+    for (const recording of recordings) if (recording.thumbnail) show(recording.id, recording.thumbnail);
+    void (async () => {
+      for (const recording of recordings) {
+        if (recording.thumbnail || cancelled) continue;
+        const blob = await getRecordingBlob(recording.id);
+        const thumbnail = blob && (await makeThumbnail(blob));
+        if (!thumbnail || cancelled) continue;
+        await updateRecording(recording.id, { thumbnail });
+        show(recording.id, thumbnail);
+      }
+    })();
+    return () => {
+      cancelled = true;
+      made.forEach((url) => URL.revokeObjectURL(url));
+    };
+  }, [recordings]);
+  return urls;
 }

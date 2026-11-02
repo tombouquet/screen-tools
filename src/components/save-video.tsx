@@ -31,6 +31,7 @@ import {
   type PresetPlan,
   type VideoInfo,
 } from '@/lib/compress';
+import { updateRecording } from '@/lib/db';
 import { downloadBlob } from '@/lib/download';
 import { cleanFileName, fileExtension, formatBytes, splitFileName } from '@/lib/formats';
 import { destinationFor, getSettings, updateSettings, type SaveSize } from '@/lib/settings';
@@ -44,7 +45,8 @@ interface SaveRequest {
   /** Preselect the suggested compression preset (opened from the "too big" notice). */
   suggestCompression: boolean;
   recordingId?: number;
-  resolve: (saved: boolean) => void;
+  /** The name it was saved as, without the extension, or undefined if cancelled. */
+  resolve: (savedAs: string | undefined) => void;
 }
 
 export interface SaveOptions {
@@ -57,17 +59,19 @@ export interface SaveOptions {
  * Saving a video. With "show save options" on (the default), Save opens a dialog for the
  * file name, size and destination: this computer or a connected service. Sizes are the
  * original or a compressed copy at one of the presets; a compressed copy is made first
- * and then saved or uploaded. `save` resolves true once the download starts or the
- * upload finishes, false if the user cancels. Render `dialog` somewhere in the page.
+ * and then saved or uploaded. `save` resolves with the file name (without its extension)
+ * once the download starts or the upload finishes, or undefined if the user cancels.
+ * Saving a stored recording under a new name keeps that name on the recording.
+ * Render `dialog` somewhere in the page.
  */
 export function useSaveVideo() {
   const [request, setRequest] = useState<SaveRequest>();
   useUploadGuard();
 
-  const save = (blob: Blob, mimeType: string, fileName: string, options: SaveOptions = {}): Promise<boolean> => {
+  const save = (blob: Blob, mimeType: string, fileName: string, options: SaveOptions = {}): Promise<string | undefined> => {
     if (!getSettings().showSaveOptions && !options.suggestCompression) {
       downloadBlob(blob, fileName);
-      return Promise.resolve(true);
+      return Promise.resolve(splitFileName(fileName).base);
     }
     return new Promise((resolve) =>
       setRequest({
@@ -81,8 +85,8 @@ export function useSaveVideo() {
     );
   };
 
-  const finish = (saved: boolean) => {
-    request?.resolve(saved);
+  const finish = (savedAs?: string) => {
+    request?.resolve(savedAs);
     setRequest(undefined);
   };
 
@@ -99,7 +103,7 @@ type Progressing =
   | { kind: 'compress'; plan: PresetPlan; fraction: number }
   | { kind: 'upload'; connector: Connector; uploadId?: number };
 
-function SaveDialog({ request, onDone }: { request: SaveRequest; onDone: (saved: boolean) => void }) {
+function SaveDialog({ request, onDone }: { request: SaveRequest; onDone: (savedAs?: string) => void }) {
   const { base, extension } = splitFileName(request.fileName);
   const [name, setName] = useState(base);
   const [size, setSize] = useState<SaveSize>('original');
@@ -151,14 +155,14 @@ function SaveDialog({ request, onDone }: { request: SaveRequest; onDone: (saved:
     job.current = undefined;
     if (upload.current !== undefined) cancelUpload(upload.current);
     upload.current = undefined;
-    onDone(false);
+    onDone();
   };
 
   /** Hands the (possibly compressed) file to the chosen destination. */
   const deliver = async (blob: Blob, mimeType: string, fileName: string) => {
     if (!cloud) {
       downloadBlob(blob, fileName);
-      onDone(true);
+      onDone(splitFileName(fileName).base);
       return;
     }
     setProgress({ kind: 'upload', connector: cloud });
@@ -177,7 +181,7 @@ function SaveDialog({ request, onDone }: { request: SaveRequest; onDone: (saved:
       if (upload.current !== current.id) return;
       upload.current = undefined;
       showUploadedToast(cloud, result);
-      onDone(true);
+      onDone(splitFileName(fileName).base);
     } catch (reason) {
       if (reason instanceof UploadCancelled) return;
       console.error(reason);
@@ -189,6 +193,10 @@ function SaveDialog({ request, onDone }: { request: SaveRequest; onDone: (saved:
 
   const save = () => {
     const chosenBase = cleanFileName(name) || base;
+    // Keep a name the user typed, so the list can show it and the next save starts from it.
+    if (request.recordingId !== undefined && chosenBase !== base) {
+      void updateRecording(request.recordingId, { name: chosenBase });
+    }
     updateSettings({ saveSize: size, saveDestination: destination, ...(cloud ? { shareLink: share } : {}) });
     setError(undefined);
     const plan = sizes.kind === 'ready' ? sizes.plans.find((p) => p.preset.id === size) : undefined;
@@ -294,7 +302,7 @@ function SaveDialog({ request, onDone }: { request: SaveRequest; onDone: (saved:
                     type="button"
                     className="text-muted-foreground hover:text-foreground justify-self-start text-xs underline underline-offset-4"
                     onClick={() => {
-                      onDone(false);
+                      onDone();
                       navigate('/settings');
                     }}
                   >

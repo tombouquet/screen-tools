@@ -395,9 +395,13 @@ function FinishedView({
   const { save: saveVideo, dialog: saveDialog } = useSaveVideo();
 
   /** Resolves false if the user cancels the save dialog. */
+  // Saving again starts from the name used last time.
+  const [fileName, setFileName] = useState(() => recordingFileName(new Date(), recording.mimeType));
+
   const save = async (suggestCompression = false): Promise<boolean> => {
-    const name = recordingFileName(new Date(), recording.mimeType);
-    if (!(await saveVideo(recording.blob, recording.mimeType, name, { suggestCompression, recordingId: recording.id }))) return false;
+    const savedAs = await saveVideo(recording.blob, recording.mimeType, fileName, { suggestCompression, recordingId: recording.id });
+    if (!savedAs) return false;
+    setFileName(`${savedAs}.${fileExtension(recording.mimeType)}`);
     await updateRecording(recording.id, { saved: true });
     onSaved();
     return true;
