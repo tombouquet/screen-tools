@@ -1,5 +1,15 @@
 # Changelog
 
+## [1.6.0](https://github.com/tombouquet/screen-tools/compare/v1.5.0...v1.6.0) (2026-11-02)
+
+
+### Features
+
+* replace the native video controls with a custom player ([#21](https://github.com/tombouquet/screen-tools/issues/21)) ([2f424a0](https://github.com/tombouquet/screen-tools/commit/2f424a0d100ab7673194743def7bfe42bdd725cf))
+* show thumbnails and saved names in the video list ([#22](https://github.com/tombouquet/screen-tools/issues/22)) ([fa13620](https://github.com/tombouquet/screen-tools/commit/fa13620751b9474bd0945f6cad394b191b710b95))
+* upload recordings and screenshots to Google Drive and Dropbox ([#18](https://github.com/tombouquet/screen-tools/issues/18)) ([17740a4](https://github.com/tombouquet/screen-tools/commit/17740a4747058a9fe227f2a2fc771593fd0840df))
+* upload to your own server by URL ([#19](https://github.com/tombouquet/screen-tools/issues/19)) ([541884b](https://github.com/tombouquet/screen-tools/commit/541884bdb8f4bb859b0ae4aa2b21fa8ef5c68321))
+
 ## [1.5.0](https://github.com/tombouquet/screen-tools/compare/v1.4.1...v1.5.0) (2026-10-30)
 
 
