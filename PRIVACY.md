@@ -23,10 +23,19 @@ When you connect Google Drive or Dropbox:
 
 Screen Tools does not read, list or download any other files in your Google Drive or Dropbox.
 
+## Upload servers
+
+You can also add an upload server of your own, or one run by your team, in Settings. When you upload to one:
+
+- The file goes to the addresses that server gives, along with its name, type and size. That server's operator, not Screen Tools, decides how it's stored and who can see it.
+- Every upload to an upload server gets a public link.
+- The server's URL and any access token you enter are kept in the browser's local extension storage on your computer, and the token is only sent to that URL.
+- **Remove** in Settings forgets the server and gives back its host permission. Files already uploaded stay on the server.
+
 ## What we don't do
 
 - No analytics, tracking or advertising.
-- No servers of ours. Your files and tokens go only between your browser and Google or Dropbox.
+- No servers of ours. Your files and tokens go only between your browser and Google, Dropbox or an upload server you added.
 - We don't sell, share or transfer your data to anyone.
 
 ## Disconnecting

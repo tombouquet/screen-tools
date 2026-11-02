@@ -1,6 +1,6 @@
 # Screen Tools
 
-Chrome and Firefox extension that records your screen, a window, a tab or your camera, with microphone and system audio, and takes annotated screenshots. Free, no sign-up, no watermark. Nothing leaves your computer unless you connect Google Drive or Dropbox and upload a file. Tabs and system audio are Chrome only; see [Firefox](docs/firefox.md) for the other differences.
+Chrome and Firefox extension that records your screen, a window, a tab or your camera, with microphone and system audio, and takes annotated screenshots. Free, no sign-up, no watermark. Nothing leaves your computer unless you connect Google Drive, Dropbox or your own upload server and upload a file. Tabs and system audio are Chrome only; see [Firefox](docs/firefox.md) for the other differences.
 
 - **Toolbar popup:** one click to start recording the screen, the camera or both, or to take a screenshot.
 - **Countdown and quick stop:** recording starts after a 3-second countdown, shown in the recorder and on the toolbar icon. While recording, the icon shows `REC`; click it to stop.
@@ -13,13 +13,14 @@ Chrome and Firefox extension that records your screen, a window, a tab or your c
 - **Player:** skip back and forward, and drop in any video file to play it or make an old WebM recording seekable.
 - **Save options:** pick a file name and a size when you save: the original, or a smaller copy from presets that show the estimated file size up front. Suggested when a video is over 25 MB. Compression runs on your computer and the original is kept. Turn the dialog off to save straight away.
 - **Cloud uploads:** upload a recording or screenshot to Google Drive or Dropbox, and copy a share link in one click. Connect an account in Settings first. Share links are on by default and the choice is remembered. Files go to a Screen Tools folder in your Drive, or `Apps/Screen Tools` in your Dropbox, and the extension can't see anything else there.
+- **Upload servers:** add your own server in Settings by URL, and uploads to it get a public link. Any server that hands out an upload URL and a link works; see [Upload servers](docs/guides/upload-servers.md) for what it needs.
 - **Light and dark themes.**
 
 ## Privacy
 
 Recordings, screenshots and settings stay in the extension's storage on your computer. There are no analytics and no servers of ours.
 
-Uploads are optional. When you click **Connect** in Settings, Chrome asks you to allow access to that service's API sites (`googleapis.com` for Google Drive, `dropboxapi.com` for Dropbox). These are optional permissions: the extension doesn't ask for them at install, only for the service you connect. After that, files go straight from your browser to your own account, and only when you upload them. **Disconnect** deletes the stored sign-in and revokes it. See the [privacy policy](PRIVACY.md).
+Uploads are optional. When you click **Connect** in Settings, Chrome asks you to allow access to that service's API sites (`googleapis.com` for Google Drive, `dropboxapi.com` for Dropbox). These are optional permissions: the extension doesn't ask for them at install, only for the service you connect. After that, files go straight from your browser to your own account, and only when you upload them. Adding an upload server asks for access to that server's host only. **Disconnect** deletes the stored sign-in and revokes it. See the [privacy policy](PRIVACY.md).
 
 ## Install
 

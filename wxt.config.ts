@@ -25,6 +25,10 @@ const uploadPermissions = {
     'https://oauth2.googleapis.com/*',
     'https://api.dropboxapi.com/*',
     'https://content.dropboxapi.com/*',
+    // Upload servers are whatever URL someone types in Settings; only that server's
+    // host is asked for, when it's added (src/lib/connectors/upload-server.ts).
+    'http://*/*',
+    'https://*/*',
   ],
 };
 

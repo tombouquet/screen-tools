@@ -137,7 +137,11 @@ function sanitize(raw: Partial<Record<keyof Settings | 'askFileName', unknown>>)
     saveSize: oneOf(raw.saveSize, SAVE_SIZES, d.saveSize),
     imageFormat: oneOf(raw.imageFormat, ['png', 'jpg'], d.imageFormat),
     screenshotQuality: oneOf(raw.screenshotQuality, SCREENSHOT_QUALITIES.map((q) => q.id), d.screenshotQuality),
-    saveDestination: oneOf(raw.saveDestination, CONNECTOR_IDS, d.saveDestination),
+    // Upload servers have ids made when they're added, so any `server:` id is kept.
+    saveDestination:
+      typeof raw.saveDestination === 'string' && raw.saveDestination.startsWith('server:')
+        ? (raw.saveDestination as ConnectorId)
+        : oneOf(raw.saveDestination, CONNECTOR_IDS, d.saveDestination),
     shareLink: typeof raw.shareLink === 'boolean' ? raw.shareLink : d.shareLink,
     theme: oneOf(raw.theme, ['light', 'dark', 'system'], d.theme),
   };

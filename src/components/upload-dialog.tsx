@@ -8,16 +8,24 @@ import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import { showUploadedToast, uploadErrorMessage, UploadProgress } from '@/components/upload-status';
 import { useConnections } from '@/lib/connectors/connections';
-import { connectorsFor } from '@/lib/connectors/registry';
-import type { Connector, ConnectorId, MediaKind } from '@/lib/connectors/types';
+import { connectorsFor, serverConnector } from '@/lib/connectors/registry';
+import type { Connection, Connector, ConnectorId, MediaKind } from '@/lib/connectors/types';
 import { UploadCancelled, cancel, getLiveUploads, startUpload, subscribeUploads, useUploadGuard, type UploadSource } from '@/lib/connectors/upload';
 import { getSettings, updateSettings } from '@/lib/settings';
 
-/** Services that take this kind of file and are connected. */
+/** Services that take this kind of file and are connected, then upload servers in the order they were added. */
 export function useConnectedDestinations(kind: MediaKind): Connector[] {
   const connections = useConnections();
-  return connectorsFor(kind).filter((c) => c.id !== 'local' && connections?.some((x) => x.connector === c.id));
+  const builtIn = connectorsFor(kind).filter((c) => c.id !== 'local' && connections?.some((x) => x.connector === c.id));
+  const servers = (connections ?? [])
+    .map(serverConnector)
+    .filter((c): c is Connector => Boolean(c?.accepts.includes(kind)))
+    .sort((a, b) => connectedAt(connections, a.id).localeCompare(connectedAt(connections, b.id)));
+  return [...builtIn, ...servers];
 }
+
+const connectedAt = (connections: Connection[] | undefined, id: ConnectorId) =>
+  connections?.find((c) => c.connector === id)?.connectedAt ?? '';
 
 export interface UploadFile {
   blob: Blob;
@@ -96,7 +104,11 @@ function UploadDialogContent({
     try {
       const file = await getFile();
       if (closed.current) return;
-      const current = await startUpload({ source, connectorId: connector.id, job: { ...file, kind, share } });
+      const current = await startUpload({
+        source,
+        connectorId: connector.id,
+        job: { ...file, kind, share: connector.links === 'always' || share },
+      });
       if (closed.current) cancel(current.id);
       running.current = current.id;
       setUploadId(current.id);
@@ -154,7 +166,7 @@ function UploadDialogContent({
                     />
                   </div>
                 )}
-                <ShareSwitch checked={share} onChange={setShare} disabled={busy} />
+                {destination.links !== 'always' && <ShareSwitch checked={share} onChange={setShare} disabled={busy} />}
               </div>
             )
           )}

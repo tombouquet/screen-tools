@@ -260,7 +260,9 @@ export async function disconnect(id: ConnectorId): Promise<void> {
   // Keep origins another connected service also uses.
   const stillNeeded = new Set(others.flatMap((c) => getConnector(c.connector).hosts));
   const origins = connector.hosts.filter((host) => !stillNeeded.has(host));
-  const permissions: Browser.runtime.ManifestPermission[] = others.length ? [] : ['identity'];
+  // Upload servers don't sign in, so only another signed-in service keeps `identity`.
+  const identityNeeded = others.some((c) => getConnector(c.connector).auth);
+  const permissions: Browser.runtime.ManifestPermission[] = identityNeeded || !connector.auth ? [] : ['identity'];
   if (!origins.length && !permissions.length) return;
   await browser.permissions
     .remove({ origins, permissions })

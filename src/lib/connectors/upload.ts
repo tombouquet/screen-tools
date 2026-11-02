@@ -18,7 +18,7 @@ import {
   type UploadSourceKind,
 } from '@/lib/db';
 import { authorizedFetch } from './auth';
-import { getConnector } from './registry';
+import { getConnector, loadConnector } from './registry';
 import { UploadError, type ConnectorId, type UploadJob, type UploadResult } from './types';
 
 export interface UploadSource {
@@ -117,7 +117,7 @@ const errorMessage = (error: unknown) => (error instanceof Error ? error.message
 
 /** Runs the connector with retries. The row already exists and says 'uploading'. */
 async function run(id: number, row: UploadRow, blob: Blob): Promise<UploadResult> {
-  const connector = getConnector(row.connector);
+  const connector = await loadConnector(row.connector);
   const controller = new AbortController();
   controllers.set(id, controller);
   const { signal } = controller;
