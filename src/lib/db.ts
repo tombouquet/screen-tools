@@ -167,11 +167,26 @@ export async function listRecordings(): Promise<Recording[]> {
   return rows.map((row, i) => ({ ...row, id: keys[i]! })).sort((a, b) => b.id - a.id);
 }
 
-/** Makes room for a new recording by deleting the oldest beyond the limit. One still uploading is kept. */
+const RECORDING_LOCK_PREFIX = 'screen-tools-recording-';
+
+/** The Web Lock a recording holds while it's being recorded; released when it stops or its window closes. */
+export const recordingLockName = (id: number) => RECORDING_LOCK_PREFIX + id;
+
+/** Recordings still being recorded, in any window. */
+export async function liveRecordingIds(): Promise<Set<number>> {
+  if (!('locks' in navigator)) return new Set();
+  const held = (await navigator.locks.query()).held ?? [];
+  return new Set(
+    held.flatMap((lock) => (lock.name?.startsWith(RECORDING_LOCK_PREFIX) ? [Number(lock.name.slice(RECORDING_LOCK_PREFIX.length))] : [])),
+  );
+}
+
+/** Makes room for a new recording by deleting the oldest beyond the limit. One still uploading or recording is kept. */
 export async function pruneRecordings(keep = MAX_RECORDINGS - 1): Promise<void> {
   const recordings = await listRecordings();
+  const live = await liveRecordingIds();
   for (const old of recordings.slice(keep)) {
-    if (await isUploading('recording', old.id)) continue;
+    if (live.has(old.id) || (await isUploading('recording', old.id))) continue;
     await deleteRecording(old.id);
   }
 }
