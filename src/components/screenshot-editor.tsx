@@ -1,5 +1,6 @@
 import {
   Circle,
+  CloudUpload,
   Copy,
   Crop,
   Download,
@@ -21,6 +22,8 @@ import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
+import { UploadDialog, useConnectedDestinations } from '@/components/upload-dialog';
+import { UploadList } from '@/components/upload-list';
 import { useBeforeUnload } from '@/hooks/use-before-unload';
 import { useSettings } from '@/hooks/use-settings';
 import {
@@ -110,6 +113,8 @@ export function ScreenshotEditor({
   const [cropDraft, setCropDraft] = useState<{ from: Point; to: Point }>();
   const [text, setText] = useState<TextDraft>();
   const [busy, setBusy] = useState(false);
+  const [uploadOpen, setUploadOpen] = useState(false);
+  const destinations = useConnectedDestinations('image');
   const stageRef = useRef<HTMLDivElement>(null);
   const [stage, setStage] = useState<{ width: number; height: number }>();
 
@@ -354,9 +359,26 @@ export function ScreenshotEditor({
           <Button variant="outline" disabled={!image || busy} onClick={() => void copy()}>
             <Copy /> Copy
           </Button>
+          {destinations.length > 0 && (
+            <Button variant="outline" disabled={!image || busy} onClick={() => setUploadOpen(true)}>
+              <CloudUpload /> Upload
+            </Button>
+          )}
           <Button disabled={!image || busy} onClick={() => void download()}>
             <Download /> Download
           </Button>
+          <UploadDialog
+            open={uploadOpen}
+            onOpenChange={setUploadOpen}
+            kind="image"
+            source={{ kind: 'screenshot', id: screenshot.id }}
+            getFile={async () => {
+              const format = settings.imageFormat;
+              const blob = await flatten(image!, doc, mimeOf(format));
+              return { blob, fileName: screenshotFileName(new Date(screenshot.date), format), mimeType: mimeOf(format) };
+            }}
+            onUploaded={() => void persist()}
+          />
         </div>
       </div>
 
@@ -396,6 +418,10 @@ export function ScreenshotEditor({
             />
           )}
         </div>
+      </div>
+
+      <div className="max-h-48 shrink-0 overflow-auto empty:hidden">
+        <UploadList kind="screenshot" id={screenshot.id} />
       </div>
     </div>
   );

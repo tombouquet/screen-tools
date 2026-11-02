@@ -7,6 +7,7 @@ import { MonitorCamera } from '@/components/icons';
 import { ConfirmDeleteDialog, UnsavedDialog } from '@/components/confirm-dialog';
 import { RecordedVideo } from '@/components/recorded-video';
 import { LargeFileNotice, useSaveVideo } from '@/components/save-video';
+import { UploadList } from '@/components/upload-list';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -396,7 +397,7 @@ function FinishedView({
   /** Resolves false if the user cancels the save dialog. */
   const save = async (suggestCompression = false): Promise<boolean> => {
     const name = recordingFileName(new Date(), recording.mimeType);
-    if (!(await saveVideo(recording.blob, recording.mimeType, name, { suggestCompression }))) return false;
+    if (!(await saveVideo(recording.blob, recording.mimeType, name, { suggestCompression, recordingId: recording.id }))) return false;
     await updateRecording(recording.id, { saved: true });
     onSaved();
     return true;
@@ -450,6 +451,7 @@ function FinishedView({
             </Button>
           </div>
         </div>
+        <UploadList kind="recording" id={recording.id} onUploaded={onSaved} />
       </CardContent>
       <UnsavedDialog
         open={unsavedOpen}

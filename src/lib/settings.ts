@@ -1,6 +1,7 @@
 // User preferences, kept in the app page's localStorage.
 // Every getter validates what's stored and falls back to the default.
 import { platform } from '@/platform';
+import type { ConnectorId } from './connectors/types';
 import { isFormatSupported } from './formats';
 
 export type CameraPosition = 'top-left' | 'top-right' | 'bottom-left' | 'bottom-right';
@@ -16,6 +17,8 @@ export const SAVE_SIZES = ['original', 'high', 'balanced', 'small', 'smallest'] 
 export type SaveSize = (typeof SAVE_SIZES)[number];
 export type CaptureSource = 'screen' | 'camera' | 'screen-camera';
 export type AudioSource = 'none' | 'microphone' | 'system-microphone' | 'system';
+/** Matches the ids in connectors/registry.ts; not imported so settings stay free of the connectors. */
+const CONNECTOR_IDS: readonly ConnectorId[] = ['local', 'google-drive', 'dropbox'];
 
 export const CAMERA_POSITIONS: CameraPosition[] = ['top-left', 'top-right', 'bottom-left', 'bottom-right'];
 export const CAMERA_SIZES: CameraSize[] = ['small', 'medium', 'large'];
@@ -72,6 +75,10 @@ export interface Settings {
   /** The screenshot download format picked last time. */
   imageFormat: ImageFormat;
   screenshotQuality: ScreenshotQualityId;
+  /** Where the save dialog sent the last video. See `destinationFor` for when it's no longer connected. */
+  saveDestination: ConnectorId;
+  /** Ask for a public link when uploading. */
+  shareLink: boolean;
   theme: Theme;
 }
 
@@ -94,6 +101,8 @@ export const DEFAULT_SETTINGS: Settings = {
   saveSize: 'original',
   imageFormat: 'png',
   screenshotQuality: 'native',
+  saveDestination: 'local',
+  shareLink: true,
   theme: 'system',
 };
 
@@ -128,6 +137,8 @@ function sanitize(raw: Partial<Record<keyof Settings | 'askFileName', unknown>>)
     saveSize: oneOf(raw.saveSize, SAVE_SIZES, d.saveSize),
     imageFormat: oneOf(raw.imageFormat, ['png', 'jpg'], d.imageFormat),
     screenshotQuality: oneOf(raw.screenshotQuality, SCREENSHOT_QUALITIES.map((q) => q.id), d.screenshotQuality),
+    saveDestination: oneOf(raw.saveDestination, CONNECTOR_IDS, d.saveDestination),
+    shareLink: typeof raw.shareLink === 'boolean' ? raw.shareLink : d.shareLink,
     theme: oneOf(raw.theme, ['light', 'dark', 'system'], d.theme),
   };
 }
@@ -195,4 +206,9 @@ export function screenshotMaxWidth(id: ScreenshotQualityId): number {
 
 export function cameraResolution(id: CameraResolutionId) {
   return CAMERA_RESOLUTIONS.find((r) => r.id === id) ?? CAMERA_RESOLUTIONS[0];
+}
+
+/** The remembered destination if it's still connected, otherwise this computer. */
+export function destinationFor(remembered: ConnectorId, connected: readonly ConnectorId[]): ConnectorId {
+  return remembered !== 'local' && connected.includes(remembered) ? remembered : 'local';
 }

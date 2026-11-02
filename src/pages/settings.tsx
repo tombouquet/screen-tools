@@ -1,5 +1,6 @@
-import { CheckCircle2, ExternalLink, Monitor, Moon, ShieldAlert, Sun, XCircle } from 'lucide-react';
+import { CheckCircle2, ExternalLink, Loader2, Monitor, Moon, ShieldAlert, Sun, XCircle } from 'lucide-react';
 import { useCallback, useEffect, useState } from 'react';
+import { toast } from 'sonner';
 import { browser } from 'wxt/browser';
 import { useTheme } from '@/components/theme-provider';
 import { Badge } from '@/components/ui/badge';
@@ -12,6 +13,11 @@ import { Switch } from '@/components/ui/switch';
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
 import { useSettings } from '@/hooks/use-settings';
 import { checkPermissions, listDevices, type PermissionCheck } from '@/lib/capture';
+import { SignInCancelled, connect, disconnect } from '@/lib/connectors/auth';
+import { useConnections } from '@/lib/connectors/connections';
+import { CONNECTORS } from '@/lib/connectors/registry';
+import type { Connection, Connector, ConnectorId } from '@/lib/connectors/types';
+import { useUploadGuard } from '@/lib/connectors/upload';
 import { overlayBox } from '@/lib/compositor';
 import { openAppTab } from '@/lib/download';
 import { SQUIRCLE_CLIP_PATH } from '@/lib/squircle';
@@ -232,10 +238,94 @@ export function SettingsPage() {
         </CardContent>
       </Card>
 
+      <ConnectionsCard />
+
       <AppearanceCard />
     </div>
   );
 }
+
+function ConnectionsCard() {
+  const connections = useConnections();
+  const [pending, setPending] = useState<ConnectorId>();
+  // An upload started on another page may still be running in this window.
+  useUploadGuard();
+
+  // Called straight from the click: Connect asks for permissions, which needs the gesture.
+  const onConnect = (connector: Connector) => {
+    setPending(connector.id);
+    connect(connector).then(
+      (connection) => toast.success(`Connected to ${connector.name}`, { description: accountLabel(connection) }),
+      (error: unknown) => {
+        if (error instanceof SignInCancelled) return;
+        console.error(error);
+        toast.error(`Couldn't connect to ${connector.name}`, { description: error instanceof Error ? error.message : String(error) });
+      },
+    ).finally(() => setPending(undefined));
+  };
+  const onDisconnect = (connector: Connector) => {
+    setPending(connector.id);
+    disconnect(connector.id).then(
+      () => toast.success(`Disconnected from ${connector.name}`),
+      (error: unknown) => {
+        console.error(error);
+        toast.error(`Couldn't disconnect from ${connector.name}`, { description: error instanceof Error ? error.message : String(error) });
+      },
+    ).finally(() => setPending(undefined));
+  };
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle>Connections</CardTitle>
+        <CardDescription>
+          Upload videos and screenshots and get a link to share. Files only leave your computer when you upload them.
+        </CardDescription>
+      </CardHeader>
+      <CardContent>
+        <ul className="divide-y">
+          {CONNECTORS.filter((c) => c.auth).map((connector) => {
+            const connection = connections?.find((c) => c.connector === connector.id);
+            const available = Boolean(connector.auth?.clientId);
+            const busy = pending === connector.id;
+            return (
+              <li key={connector.id} className="flex flex-wrap items-center gap-3 py-3 first:pt-0 last:pb-0">
+                <connector.icon className="size-5 shrink-0" />
+                <div className="min-w-48 flex-1 space-y-0.5">
+                  <p className="text-sm font-medium">{connector.name}</p>
+                  <p className="text-muted-foreground text-xs">{connector.description}</p>
+                  <p className="text-xs">
+                    {!available
+                      ? 'Not available in this build'
+                      : connection
+                        ? `Connected as ${accountLabel(connection)}`
+                        : connections
+                          ? 'Not connected'
+                          : ''}
+                  </p>
+                </div>
+                {available &&
+                  connections &&
+                  (connection ? (
+                    <Button variant="outline" size="sm" disabled={busy} onClick={() => onDisconnect(connector)}>
+                      {busy && <Loader2 className="animate-spin" />} Disconnect
+                    </Button>
+                  ) : (
+                    <Button size="sm" disabled={busy} onClick={() => onConnect(connector)}>
+                      {busy && <Loader2 className="animate-spin" />} Connect
+                    </Button>
+                  ))}
+              </li>
+            );
+          })}
+        </ul>
+      </CardContent>
+    </Card>
+  );
+}
+
+const accountLabel = (connection: Connection) =>
+  connection.account.email ?? connection.account.name ?? connection.account.id;
 
 function PermissionCard({ permission, onRetry }: { permission?: PermissionCheck; onRetry: () => void }) {
   const status = !permission
