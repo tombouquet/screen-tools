@@ -80,9 +80,21 @@ function setLive(id: number, value: LiveUpload | undefined): void {
   notify();
 }
 
+// Tells the app's other windows when a row changes, so their lists don't go stale.
+const channel = typeof BroadcastChannel !== 'undefined' ? new BroadcastChannel('screen-tools-uploads') : undefined;
+
 function bump(): void {
   version++;
   notify();
+  channel?.postMessage('changed');
+}
+
+if (channel) {
+  channel.onmessage = () => {
+    version++;
+    notify();
+    void watchOtherWindows().catch((error: unknown) => console.error("Couldn't watch uploads", error));
+  };
 }
 
 export function subscribeUploads(listener: () => void): () => void {
@@ -157,21 +169,30 @@ async function run(id: number, row: UploadRow, blob: Blob): Promise<UploadResult
     }
   };
 
-  try {
-    // The lock tells other windows this upload is alive; it's released when this one closes.
-    const result = await navigator.locks.request(LOCK_PREFIX + id, attempt);
-    await updateUpload(id, { status: 'done', sentBytes: blob.size, result, error: undefined, blob: undefined, resumeState: undefined });
-    // Without a source there's nowhere to list it, so the row isn't needed any more.
-    if (row.sourceKind === undefined) await deleteUpload(id);
-    return result;
-  } catch (error) {
-    if (error instanceof UploadCancelled || signal.aborted) {
-      await deleteUpload(id);
-      throw new UploadCancelled();
+  // The lock tells other windows this upload is alive; it's released when this one closes.
+  // The final status is written while it's still held, so a window watching the lock
+  // never sees it released with the row still saying 'uploading'.
+  const finish = async (): Promise<UploadResult> => {
+    bump();
+    try {
+      const result = await attempt();
+      await updateUpload(id, { status: 'done', sentBytes: blob.size, result, error: undefined, blob: undefined, resumeState: undefined });
+      // Without a source there's nowhere to list it, so the row isn't needed any more.
+      if (row.sourceKind === undefined) await deleteUpload(id);
+      return result;
+    } catch (error) {
+      if (error instanceof UploadCancelled || signal.aborted) {
+        await deleteUpload(id);
+        throw new UploadCancelled();
+      }
+      console.error(error);
+      await updateUpload(id, { status: 'failed', sentBytes, error: errorMessage(error) });
+      throw error;
     }
-    console.error(error);
-    await updateUpload(id, { status: 'failed', sentBytes, error: errorMessage(error) });
-    throw error;
+  };
+
+  try {
+    return await navigator.locks.request(LOCK_PREFIX + id, finish);
   } finally {
     controllers.delete(id);
     setLive(id, undefined);
@@ -273,7 +294,33 @@ async function markInterrupted(): Promise<void> {
   if (changed) bump();
 }
 
+const watching = new Set<string>();
+
+/**
+ * Waits on the locks of uploads running in other windows. When one is released, the
+ * upload finished (its row says so) or its window closed, and the row is marked interrupted.
+ */
+async function watchOtherWindows(): Promise<void> {
+  const held = new Set((await navigator.locks.query()).held?.map((lock) => lock.name));
+  for (const upload of await listUploads()) {
+    const name = LOCK_PREFIX + upload.id;
+    if (upload.status !== 'uploading' || !held.has(name) || controllers.has(upload.id) || watching.has(name)) continue;
+    watching.add(name);
+    // A shared request is only granted once the running upload lets go. Release it at once,
+    // so it doesn't hold up a resume, then check.
+    void navigator.locks
+      .request(name, { mode: 'shared' }, () => {})
+      .then(() => {
+        watching.delete(name);
+        return markInterrupted();
+      })
+      .catch((error: unknown) => console.error("Couldn't check an upload", error));
+  }
+}
+
 // Once per app page, when anything first imports the uploader.
 if (typeof window !== 'undefined' && 'locks' in navigator) {
-  void markInterrupted().catch((error: unknown) => console.error("Couldn't check old uploads", error));
+  void markInterrupted()
+    .then(watchOtherWindows)
+    .catch((error: unknown) => console.error("Couldn't check old uploads", error));
 }
