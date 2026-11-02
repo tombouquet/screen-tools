@@ -15,7 +15,7 @@ const ACTIONS: { path: string; label: string; description: string; icon: LucideI
   { path: '/videos', label: 'Latest videos', description: 'Your last 5 recordings, saved as you record.', icon: Film },
   { path: '/screenshots', label: 'Screenshots', description: 'Your last 10 screenshots, ready to annotate.', icon: Image },
   { path: '/player', label: 'Player', description: 'Play any video file, or make an old WebM seekable.', icon: PlayCircle },
-  { path: '/settings', label: 'Settings', description: 'Formats, camera overlay, screenshot size and theme.', icon: Settings },
+  { path: '/settings', label: 'Settings', description: 'Camera, microphone, formats, uploads and theme.', icon: Settings },
 ];
 
 const STEPS = [

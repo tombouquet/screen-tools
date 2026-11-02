@@ -303,7 +303,7 @@ function SaveDialog({ request, onDone }: { request: SaveRequest; onDone: (savedA
                     className="text-muted-foreground hover:text-foreground justify-self-start text-xs underline underline-offset-4"
                     onClick={() => {
                       onDone();
-                      navigate('/settings');
+                      navigate('/settings/uploads');
                     }}
                   >
                     Connect a service or add an upload server in Settings

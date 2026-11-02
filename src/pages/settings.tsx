@@ -1,72 +1,38 @@
-import { CheckCircle2, ExternalLink, Loader2, Monitor, Moon, ShieldAlert, Sun, XCircle } from 'lucide-react';
+import { Camera, Check, CloudUpload, Film, Image, Mic, Palette, Rocket } from 'lucide-react';
+import type { LucideIcon } from 'lucide-react';
 import { useCallback, useEffect, useState } from 'react';
-import { toast } from 'sonner';
-import { browser } from 'wxt/browser';
-import { useTheme } from '@/components/theme-provider';
-import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Label } from '@/components/ui/label';
-import { OptionSelect, type SelectOption } from '@/components/option-select';
-import { Slider } from '@/components/ui/slider';
-import { Switch } from '@/components/ui/switch';
-import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
-import { UploadServers } from '@/components/upload-servers';
+import { AppearanceSection } from '@/components/settings/appearance-section';
+import { CameraSection } from '@/components/settings/camera-section';
+import { GetStartedSection, setupSteps } from '@/components/settings/get-started';
+import { MicrophoneSection } from '@/components/settings/microphone-section';
+import { RecordingSection } from '@/components/settings/recording-section';
+import { ScreenshotsSection } from '@/components/settings/screenshots-section';
+import { UploadsSection } from '@/components/settings/uploads-section';
+import { navigate } from '@/hooks/use-route';
 import { useSettings } from '@/hooks/use-settings';
 import { checkPermissions, listDevices, type PermissionCheck } from '@/lib/capture';
-import { SignInCancelled, connect, disconnect } from '@/lib/connectors/auth';
 import { useConnections } from '@/lib/connectors/connections';
-import { CONNECTORS } from '@/lib/connectors/registry';
-import type { Connection, Connector, ConnectorId } from '@/lib/connectors/types';
-import { useUploadGuard } from '@/lib/connectors/upload';
-import { overlayBox } from '@/lib/compositor';
-import { openAppTab } from '@/lib/download';
-import { SQUIRCLE_CLIP_PATH } from '@/lib/squircle';
-import { formatOptions } from '@/lib/formats';
-import {
-  CAMERA_POSITIONS,
-  CAMERA_RESOLUTIONS,
-  CAMERA_SHAPES,
-  CAMERA_SIZES,
-  SCREEN_RESOLUTIONS,
-  SCREENSHOT_QUALITIES,
-  FRAME_RATES,
-  updateSettings,
-  type CameraPosition,
-  type CameraResolutionId,
-  type CameraShape,
-  type CameraSize,
-  type FrameRate,
-  type ScreenResolutionId,
-  type ScreenshotQualityId,
-  type Settings,
-  type Theme,
-} from '@/lib/settings';
+import { useSetup } from '@/lib/setup';
+import { cn } from '@/lib/utils';
 
-const POSITION_LABELS: Record<CameraPosition, string> = {
-  'top-left': 'Top left',
-  'top-right': 'Top right',
-  'bottom-left': 'Bottom left',
-  'bottom-right': 'Bottom right',
-};
-const CAMERA_POSITION_OPTIONS = CAMERA_POSITIONS.map((p) => ({ value: p, label: POSITION_LABELS[p] }));
-const CAMERA_RESOLUTION_OPTIONS = CAMERA_RESOLUTIONS.map((r) => ({ value: r.id as CameraResolutionId, label: r.label }));
-const SCREEN_RESOLUTION_OPTIONS = SCREEN_RESOLUTIONS.map((r) => ({ value: r.id as ScreenResolutionId, label: r.label }));
-const SCREENSHOT_QUALITY_OPTIONS = SCREENSHOT_QUALITIES.map((q) => ({ value: q.id as ScreenshotQualityId, label: q.label }));
-const IMAGE_FORMAT_OPTIONS = [
-  { value: 'png' as const, label: 'PNG' },
-  { value: 'jpg' as const, label: 'JPG' },
-];
-const FRAME_RATE_OPTIONS = FRAME_RATES.map((fps) => ({
-  value: String(fps),
-  label: fps === 60 ? '60 fps (smoother, bigger files)' : `${fps} fps`,
-}));
-const capitalise = (s: string) => s[0]!.toUpperCase() + s.slice(1);
-// The device selects use a stand-in value for "system default", stored as ''.
-const DEFAULT_DEVICE = 'default-device';
+const SECTIONS = [
+  { id: 'get-started', label: 'Get started', icon: Rocket },
+  { id: 'camera', label: 'Camera', icon: Camera },
+  { id: 'microphone', label: 'Microphone', icon: Mic },
+  { id: 'recording', label: 'Recording', icon: Film },
+  { id: 'screenshots', label: 'Screenshots', icon: Image },
+  { id: 'uploads', label: 'Uploads', icon: CloudUpload },
+  { id: 'appearance', label: 'Appearance', icon: Palette },
+] as const satisfies readonly { id: string; label: string; icon: LucideIcon }[];
+type SectionId = (typeof SECTIONS)[number]['id'];
 
-export function SettingsPage() {
+const isSection = (id: string | undefined): id is SectionId => SECTIONS.some((s) => s.id === id);
+
+/** Settings, one section at a time. `section` comes from the route, e.g. `#/settings/camera`. */
+export function SettingsPage({ section }: { section?: string }) {
   const settings = useSettings();
+  const setup = useSetup();
+  const connections = useConnections();
   const [permission, setPermission] = useState<PermissionCheck>();
   const [devices, setDevices] = useState<{ cameras: MediaDeviceInfo[]; microphones: MediaDeviceInfo[] }>({
     cameras: [],
@@ -82,454 +48,66 @@ export function SettingsPage() {
     void check();
   }, [check]);
 
-  return (
-    <div className="space-y-4">
-      <PermissionCard permission={permission} onRetry={() => void check()} />
-
-      <Card>
-        <CardHeader>
-          <CardTitle>Video</CardTitle>
-        </CardHeader>
-        <CardContent className="grid gap-5 sm:grid-cols-2">
-          <Field label="Screen resolution" id="screen-resolution">
-            <OptionSelect
-              id="screen-resolution"
-              items={SCREEN_RESOLUTION_OPTIONS}
-              value={settings.screenResolution}
-              onValueChange={(screenResolution) => updateSettings({ screenResolution })}
-            />
-          </Field>
-          <Field label="Preferred camera" id="camera">
-            <DeviceSelect
-              id="camera"
-              devices={devices.cameras}
-              value={settings.cameraId}
-              onChange={(cameraId) => updateSettings({ cameraId })}
-            />
-          </Field>
-          <Field label="Camera resolution" id="resolution">
-            <OptionSelect
-              id="resolution"
-              items={CAMERA_RESOLUTION_OPTIONS}
-              value={settings.cameraResolution}
-              onValueChange={(cameraResolution) => updateSettings({ cameraResolution })}
-            />
-          </Field>
-          <Field label="Output format" id="format">
-            <OptionSelect
-              id="format"
-              items={formatOptions()}
-              value={settings.format}
-              onValueChange={(format) => updateSettings({ format })}
-            />
-          </Field>
-          <Field label="Frame rate" id="frame-rate">
-            <OptionSelect
-              id="frame-rate"
-              items={FRAME_RATE_OPTIONS}
-              value={String(settings.frameRate)}
-              onValueChange={(v) => updateSettings({ frameRate: Number(v) as FrameRate })}
-            />
-          </Field>
-          <SwitchField
-            id="save-options"
-            label="Show save options"
-            description="Pick a file name and size (original or a smaller copy) when saving. Off saves the original straight away with a dated name."
-            checked={settings.showSaveOptions}
-            onChange={(showSaveOptions) => updateSettings({ showSaveOptions })}
-          />
-          <SwitchField
-            id="optimize"
-            label="Optimize video (make seekable)"
-            description="Writes the length into WebM files so you can skip around in them. Turn off if stopping a long recording is slow."
-            checked={settings.optimizeVideo}
-            onChange={(optimizeVideo) => updateSettings({ optimizeVideo })}
-          />
-        </CardContent>
-      </Card>
-
-      <Card>
-        <CardHeader>
-          <CardTitle>Camera overlay</CardTitle>
-          <CardDescription>How the camera looks in Screen + camera recordings.</CardDescription>
-        </CardHeader>
-        <CardContent className="grid gap-6 sm:grid-cols-[1fr_220px]">
-          <div className="space-y-5">
-            <Field label="Position" id="position">
-              <OptionSelect
-                id="position"
-                items={CAMERA_POSITION_OPTIONS}
-                value={settings.cameraPosition}
-                onValueChange={(cameraPosition) => updateSettings({ cameraPosition })}
-              />
-            </Field>
-            <Field label="Size">
-              <Segmented
-                value={settings.cameraSize}
-                options={CAMERA_SIZES}
-                onChange={(cameraSize: CameraSize) => updateSettings({ cameraSize })}
-              />
-            </Field>
-            <Field label="Shape">
-              <Segmented
-                value={settings.cameraShape}
-                options={CAMERA_SHAPES}
-                onChange={(cameraShape: CameraShape) => updateSettings({ cameraShape })}
-              />
-            </Field>
-            <Field label={`Zoom · ${settings.cameraZoom.toFixed(1)}×`} id="zoom">
-              <Slider
-                id="zoom"
-                min={1}
-                max={2}
-                step={0.1}
-                value={settings.cameraZoom}
-                onValueChange={(v) => updateSettings({ cameraZoom: typeof v === 'number' ? v : v[0]! })}
-              />
-            </Field>
-            <SwitchField
-              id="mirror"
-              label="Mirror camera image"
-              checked={settings.cameraMirror}
-              onChange={(cameraMirror) => updateSettings({ cameraMirror })}
-            />
-          </div>
-          <OverlayPreview settings={settings} />
-        </CardContent>
-      </Card>
-
-      <Card>
-        <CardHeader>
-          <CardTitle>Audio</CardTitle>
-        </CardHeader>
-        <CardContent className="grid gap-5 sm:grid-cols-2">
-          <Field label="Preferred microphone" id="microphone">
-            <DeviceSelect
-              id="microphone"
-              devices={devices.microphones}
-              value={settings.microphoneId}
-              onChange={(microphoneId) => updateSettings({ microphoneId })}
-            />
-          </Field>
-        </CardContent>
-      </Card>
-
-      <Card>
-        <CardHeader>
-          <CardTitle>Screenshots</CardTitle>
-          <CardDescription>Native keeps every pixel of your screen; on a high-density display that's twice the page size.</CardDescription>
-        </CardHeader>
-        <CardContent className="grid gap-5 sm:grid-cols-2">
-          <Field label="Quality" id="screenshot-quality">
-            <OptionSelect
-              id="screenshot-quality"
-              items={SCREENSHOT_QUALITY_OPTIONS}
-              value={settings.screenshotQuality}
-              onValueChange={(screenshotQuality) => updateSettings({ screenshotQuality })}
-            />
-          </Field>
-          <Field label="Download format" id="image-format">
-            <OptionSelect
-              id="image-format"
-              items={IMAGE_FORMAT_OPTIONS}
-              value={settings.imageFormat}
-              onValueChange={(imageFormat) => updateSettings({ imageFormat })}
-            />
-          </Field>
-        </CardContent>
-      </Card>
-
-      <ConnectionsCard />
-
-      <AppearanceCard />
-    </div>
-  );
-}
-
-function ConnectionsCard() {
-  const connections = useConnections();
-  const [pending, setPending] = useState<ConnectorId>();
-  // An upload started on another page may still be running in this window.
-  useUploadGuard();
-
-  // Called straight from the click: Connect asks for permissions, which needs the gesture.
-  const onConnect = (connector: Connector) => {
-    setPending(connector.id);
-    connect(connector).then(
-      (connection) => toast.success(`Connected to ${connector.name}`, { description: accountLabel(connection) }),
-      (error: unknown) => {
-        if (error instanceof SignInCancelled) return;
-        console.error(error);
-        toast.error(`Couldn't connect to ${connector.name}`, { description: error instanceof Error ? error.message : String(error) });
-      },
-    ).finally(() => setPending(undefined));
-  };
-  const onDisconnect = (connector: Connector) => {
-    setPending(connector.id);
-    disconnect(connector.id).then(
-      () => toast.success(`Disconnected from ${connector.name}`),
-      (error: unknown) => {
-        console.error(error);
-        toast.error(`Couldn't disconnect from ${connector.name}`, { description: error instanceof Error ? error.message : String(error) });
-      },
-    ).finally(() => setPending(undefined));
-  };
+  const steps = setupSteps(permission, setup);
+  const stepsDone = steps.filter(Boolean).length;
+  const setupComplete = stepsDone === steps.length;
+  // A plain #/settings opens the checklist until its checks are done. Picked once, so finishing
+  // a check doesn't swap the section (and close the camera preview) mid-use.
+  const [fallback] = useState<SectionId>(() => (setup.cameraChecked && setup.micChecked ? 'camera' : 'get-started'));
+  const active: SectionId = isSection(section) ? section : fallback;
 
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle>Connections</CardTitle>
-        <CardDescription>
-          Upload videos and screenshots and get a link to share. Files only leave your computer when you upload them.
-        </CardDescription>
-      </CardHeader>
-      <CardContent className="space-y-4">
-        <ul className="divide-y">
-          {CONNECTORS.filter((c) => c.auth).map((connector) => {
-            const connection = connections?.find((c) => c.connector === connector.id);
-            const available = Boolean(connector.auth?.clientId);
-            const busy = pending === connector.id;
-            return (
-              <li key={connector.id} className="flex flex-wrap items-center gap-3 py-3 first:pt-0 last:pb-0">
-                <connector.icon className="size-5 shrink-0" />
-                <div className="min-w-48 flex-1 space-y-0.5">
-                  <p className="text-sm font-medium">{connector.name}</p>
-                  <p className="text-muted-foreground text-xs">{connector.description}</p>
-                  <p className="text-xs">
-                    {!available
-                      ? 'Not available in this build'
-                      : connection
-                        ? `Connected as ${accountLabel(connection)}`
-                        : connections
-                          ? 'Not connected'
-                          : ''}
-                  </p>
-                </div>
-                {available &&
-                  connections &&
-                  (connection ? (
-                    <Button variant="outline" size="sm" disabled={busy} onClick={() => onDisconnect(connector)}>
-                      {busy && <Loader2 className="animate-spin" />} Disconnect
-                    </Button>
-                  ) : (
-                    <Button size="sm" disabled={busy} onClick={() => onConnect(connector)}>
-                      {busy && <Loader2 className="animate-spin" />} Connect
-                    </Button>
-                  ))}
-              </li>
-            );
-          })}
-        </ul>
-        {connections && <UploadServers connections={connections} />}
-      </CardContent>
-    </Card>
-  );
-}
-
-const accountLabel = (connection: Connection) =>
-  connection.account.email ?? connection.account.name ?? connection.account.id;
-
-function PermissionCard({ permission, onRetry }: { permission?: PermissionCheck; onRetry: () => void }) {
-  const status = !permission
-    ? { icon: ShieldAlert, text: 'Please grant permission', tone: 'text-muted-foreground' }
-    : permission.state === 'granted'
-      ? { icon: CheckCircle2, text: 'Permission granted', tone: 'text-green-600' }
-      : permission.state === 'partial'
-        ? { icon: ShieldAlert, text: 'Permission partially granted', tone: 'text-amber-600' }
-        : permission.state === 'denied'
-          ? { icon: XCircle, text: 'Permission denied', tone: 'text-destructive' }
-          : { icon: XCircle, text: `Error getting media stream: ${permission.error}`, tone: 'text-destructive' };
-  const Icon = status.icon;
-  // The browser doesn't always show permission prompts in the popup window; a normal tab can.
-  const [inPopupWindow, setInPopupWindow] = useState(false);
-  useEffect(() => {
-    void browser.windows.getCurrent().then((w) => setInPopupWindow(w.type === 'popup'));
-  }, []);
-  return (
-    <Card>
-      <CardHeader>
-        <CardTitle>Recording permission</CardTitle>
-        <CardDescription>Camera and microphone access, for camera recordings and microphone audio.</CardDescription>
-      </CardHeader>
-      <CardContent className="flex flex-wrap items-center gap-3">
-        <Icon className={`size-5 ${status.tone}`} />
-        <span className={`flex-1 text-sm font-medium ${status.tone}`}>{status.text}</span>
-        {permission && (
-          <span className="flex gap-2">
-            <Badge variant={permission.camera ? 'secondary' : 'outline'}>Video {permission.camera ? '✓' : '✗'}</Badge>
-            <Badge variant={permission.microphone ? 'secondary' : 'outline'}>
-              Audio {permission.microphone ? '✓' : '✗'}
-            </Badge>
-          </span>
-        )}
-        {permission && permission.state !== 'granted' && (
-          <span className="flex gap-2">
-            <Button variant="outline" size="sm" onClick={onRetry}>
-              Try again
-            </Button>
-            {inPopupWindow && (
-              <Button size="sm" onClick={() => openAppTab('/settings')}>
-                <ExternalLink /> Fix in new tab
-              </Button>
+    <div className="flex flex-col gap-6 md:flex-row md:items-start">
+      <nav
+        aria-label="Settings"
+        className="-mx-4 flex shrink-0 gap-1 overflow-x-auto px-4 pb-1 md:sticky md:top-4 md:mx-0 md:w-48 md:flex-col md:overflow-visible md:p-0"
+      >
+        {SECTIONS.map(({ id, label, icon: Icon }) => (
+          <button
+            key={id}
+            type="button"
+            onClick={() => navigate(`/settings/${id}`)}
+            aria-current={active === id ? 'page' : undefined}
+            className={cn(
+              'text-muted-foreground hover:bg-accent hover:text-foreground flex shrink-0 items-center gap-2.5 rounded-lg px-3 py-2 text-sm font-medium transition-colors',
+              active === id && 'bg-accent text-foreground',
             )}
-          </span>
+          >
+            <Icon className="size-4" />
+            {label}
+            {id === 'get-started' && (
+              <span
+                className={cn(
+                  'ml-auto flex h-4 items-center rounded-full px-1.5 text-[10px] font-semibold tabular-nums',
+                  setupComplete ? 'bg-green-500/15 text-green-700 dark:text-green-400' : 'bg-primary text-primary-foreground',
+                )}
+              >
+                {setupComplete ? <Check className="size-3" strokeWidth={3} /> : `${stepsDone}/${steps.length}`}
+              </span>
+            )}
+          </button>
+        ))}
+      </nav>
+
+      <div className="min-w-0 flex-1">
+        {active === 'get-started' && (
+          <GetStartedSection
+            settings={settings}
+            permission={permission}
+            onRetry={() => void check()}
+            setup={setup}
+            connections={connections}
+          />
         )}
-      </CardContent>
-    </Card>
-  );
-}
-
-function AppearanceCard() {
-  const { theme, setTheme } = useTheme();
-  return (
-    <Card>
-      <CardHeader>
-        <CardTitle>Appearance</CardTitle>
-      </CardHeader>
-      <CardContent>
-        <ToggleGroup
-          variant="outline"
-          value={[theme]}
-          onValueChange={(v) => v[0] && setTheme(v[0] as Theme)}
-          aria-label="Theme"
-        >
-          <ToggleGroupItem value="light" className="px-4">
-            <Sun /> Light
-          </ToggleGroupItem>
-          <ToggleGroupItem value="dark" className="px-4">
-            <Moon /> Dark
-          </ToggleGroupItem>
-          <ToggleGroupItem value="system" className="px-4">
-            <Monitor /> System
-          </ToggleGroupItem>
-        </ToggleGroup>
-      </CardContent>
-    </Card>
-  );
-}
-
-/** A 16:9 sketch of a 1080p frame showing where the camera overlay will sit. */
-function OverlayPreview({ settings }: { settings: Settings }) {
-  const W = 1920;
-  const H = 1080;
-  const box = overlayBox(
-    {
-      position: settings.cameraPosition,
-      size: settings.cameraSize,
-      shape: settings.cameraShape,
-      zoom: settings.cameraZoom,
-      mirror: settings.cameraMirror,
-    },
-    W,
-    H,
-  );
-  const pct = (n: number, of: number) => `${(n / of) * 100}%`;
-  return (
-    <div className="space-y-2">
-      <Label>Preview</Label>
-      <div className="bg-muted relative aspect-video w-full overflow-hidden rounded-md border">
-        <div className="absolute inset-[8%] space-y-[6%] opacity-40">
-          <div className="bg-muted-foreground/40 h-[8%] w-2/3 rounded-sm" />
-          <div className="bg-muted-foreground/30 h-[6%] w-1/2 rounded-sm" />
-          <div className="bg-muted-foreground/30 h-[6%] w-3/5 rounded-sm" />
-        </div>
-        <div
-          className="bg-primary/80 absolute flex items-center justify-center"
-          style={{
-            left: pct(box.x, W),
-            top: pct(box.y, H),
-            width: pct(box.width, W),
-            height: pct(box.height, H),
-            borderRadius: settings.cameraShape === 'circle' ? '9999px' : settings.cameraShape === 'default' ? '2px' : undefined,
-            clipPath: settings.cameraShape === 'squircle' ? SQUIRCLE_CLIP_PATH : undefined,
-          }}
-        >
-          <span className="bg-primary-foreground/80 size-1/3 rounded-full" />
-        </div>
+        {active === 'camera' && <CameraSection settings={settings} permission={permission} cameras={devices.cameras} />}
+        {active === 'microphone' && (
+          <MicrophoneSection settings={settings} permission={permission} microphones={devices.microphones} />
+        )}
+        {active === 'recording' && <RecordingSection settings={settings} />}
+        {active === 'screenshots' && <ScreenshotsSection settings={settings} />}
+        {active === 'uploads' && <UploadsSection connections={connections} />}
+        {active === 'appearance' && <AppearanceSection />}
       </div>
     </div>
-  );
-}
-
-function Field({ label, id, children }: { label: string; id?: string; children: React.ReactNode }) {
-  return (
-    <div className="space-y-2">
-      <Label htmlFor={id}>{label}</Label>
-      {children}
-    </div>
-  );
-}
-
-function SwitchField({
-  id,
-  label,
-  description,
-  checked,
-  onChange,
-}: {
-  id: string;
-  label: string;
-  description?: string;
-  checked: boolean;
-  onChange: (checked: boolean) => void;
-}) {
-  return (
-    <div className="flex items-start justify-between gap-4">
-      <div className="space-y-1">
-        <Label htmlFor={id}>{label}</Label>
-        {description && <p className="text-muted-foreground text-xs">{description}</p>}
-      </div>
-      <Switch id={id} checked={checked} onCheckedChange={onChange} />
-    </div>
-  );
-}
-
-function Segmented<T extends string>({
-  value,
-  options,
-  onChange,
-}: {
-  value: T;
-  options: readonly T[];
-  onChange: (value: T) => void;
-}) {
-  return (
-    <ToggleGroup
-      variant="outline"
-      value={[value]}
-      onValueChange={(v) => v[0] && onChange(v[0] as T)}
-      className="w-full"
-    >
-      {options.map((option) => (
-        <ToggleGroupItem key={option} value={option} className="flex-1">
-          {capitalise(option)}
-        </ToggleGroupItem>
-      ))}
-    </ToggleGroup>
-  );
-}
-
-function DeviceSelect({
-  id,
-  devices,
-  value,
-  onChange,
-}: {
-  id: string;
-  devices: MediaDeviceInfo[];
-  value: string;
-  onChange: (deviceId: string) => void;
-}) {
-  const items: SelectOption[] = [
-    { value: DEFAULT_DEVICE, label: 'System default' },
-    ...devices.map((device, i) => ({ value: device.deviceId, label: device.label || `Device ${i + 1}` })),
-  ];
-  return (
-    <OptionSelect
-      id={id}
-      items={items}
-      value={value || DEFAULT_DEVICE}
-      onValueChange={(v) => onChange(v === DEFAULT_DEVICE ? '' : v)}
-    />
   );
 }

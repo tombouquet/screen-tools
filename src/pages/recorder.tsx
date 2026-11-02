@@ -71,7 +71,7 @@ function showCaptureError(error: unknown) {
   const fixable = error.kind === 'camera' || error.kind === 'microphone';
   toast.warning(WARNINGS[error.kind], {
     description: error.kind === 'system-audio' ? 'To record sound, tick "Also share audio" in the picker.' : error.message,
-    action: fixable ? { label: 'Fix in new tab', onClick: () => openAppTab('/settings') } : undefined,
+    action: fixable ? { label: 'Fix in new tab', onClick: () => openAppTab('/settings/get-started') } : undefined,
     duration: 10_000,
   });
 }
