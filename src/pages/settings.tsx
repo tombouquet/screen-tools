@@ -11,6 +11,7 @@ import { OptionSelect, type SelectOption } from '@/components/option-select';
 import { Slider } from '@/components/ui/slider';
 import { Switch } from '@/components/ui/switch';
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
+import { UploadServers } from '@/components/upload-servers';
 import { useSettings } from '@/hooks/use-settings';
 import { checkPermissions, listDevices, type PermissionCheck } from '@/lib/capture';
 import { SignInCancelled, connect, disconnect } from '@/lib/connectors/auth';
@@ -282,7 +283,7 @@ function ConnectionsCard() {
           Upload videos and screenshots and get a link to share. Files only leave your computer when you upload them.
         </CardDescription>
       </CardHeader>
-      <CardContent>
+      <CardContent className="space-y-4">
         <ul className="divide-y">
           {CONNECTORS.filter((c) => c.auth).map((connector) => {
             const connection = connections?.find((c) => c.connector === connector.id);
@@ -319,6 +320,7 @@ function ConnectionsCard() {
             );
           })}
         </ul>
+        {connections && <UploadServers connections={connections} />}
       </CardContent>
     </Card>
   );

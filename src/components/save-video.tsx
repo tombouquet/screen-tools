@@ -11,7 +11,6 @@ import { OptionSelect } from '@/components/option-select';
 import { ShareSwitch, useConnectedDestinations } from '@/components/upload-dialog';
 import { showUploadedToast, uploadErrorMessage, UploadProgress } from '@/components/upload-status';
 import { navigate } from '@/hooks/use-route';
-import { CONNECTORS, getConnector } from '@/lib/connectors/registry';
 import { local } from '@/lib/connectors/local';
 import type { Connector, ConnectorId } from '@/lib/connectors/types';
 import {
@@ -118,9 +117,7 @@ function SaveDialog({ request, onDone }: { request: SaveRequest; onDone: (saved:
   const [share, setShare] = useState(getSettings().shareLink);
   // Falls back to this computer when the remembered service isn't connected any more.
   const destination = destinationFor(chosen, destinations.map((d) => d.id));
-  const cloud = destination === 'local' ? undefined : getConnector(destination);
-  // Only point at Settings when this build can connect something.
-  const canConnect = CONNECTORS.some((c) => c.auth?.clientId);
+  const cloud = destinations.find((d) => d.id === destination);
 
   // Work out the presets' estimated sizes, then pick last time's size (or the suggestion).
   useEffect(() => {
@@ -169,7 +166,7 @@ function SaveDialog({ request, onDone }: { request: SaveRequest; onDone: (saved:
       const current = await startUpload({
         source: request.recordingId !== undefined ? { kind: 'recording', id: request.recordingId } : undefined,
         connectorId: cloud.id,
-        job: { blob, fileName, mimeType: baseMime(mimeType), kind: 'video', share },
+        job: { blob, fileName, mimeType: baseMime(mimeType), kind: 'video', share: cloud.links === 'always' || share },
         // The original is in the recording already; a compressed copy has to be kept for a resume.
         blobIsSource: blob === request.blob,
       });
@@ -292,7 +289,7 @@ function SaveDialog({ request, onDone }: { request: SaveRequest; onDone: (saved:
                   value={destination}
                   onValueChange={setChosen}
                 />
-                {destinations.length === 0 && canConnect && (
+                {destinations.length === 0 && (
                   <button
                     type="button"
                     className="text-muted-foreground hover:text-foreground justify-self-start text-xs underline underline-offset-4"
@@ -301,11 +298,11 @@ function SaveDialog({ request, onDone }: { request: SaveRequest; onDone: (saved:
                       navigate('/settings');
                     }}
                   >
-                    Connect Google Drive or Dropbox in Settings
+                    Connect a service or add an upload server in Settings
                   </button>
                 )}
               </div>
-              {cloud && <ShareSwitch checked={share} onChange={setShare} />}
+              {cloud && cloud.links !== 'always' && <ShareSwitch checked={share} onChange={setShare} />}
               <div className="grid gap-2">
                 <Label>Size</Label>
                 <RadioGroup value={size} onValueChange={(v) => setSize(v as SaveSize)} className="gap-2">

@@ -1,9 +1,13 @@
 // The contract every upload destination implements. The settings page, save dialog and
 // upload status only know about this interface and the list in registry.ts, so adding a
-// service is one connector file plus its OAuth app settings.
+// service is one connector file plus its OAuth app settings. Upload servers are the
+// exception: people add them in Settings, so each one is built from its saved settings.
 import type { ComponentType } from 'react';
 
-export type ConnectorId = 'local' | 'google-drive' | 'dropbox';
+/** Upload servers get `server:<random id>`, one per server added in Settings. */
+export type ConnectorId = 'local' | 'google-drive' | 'dropbox' | `server:${string}`;
+
+export const isServerId = (id: string): id is `server:${string}` => id.startsWith('server:');
 
 export type MediaKind = 'video' | 'image';
 
@@ -51,9 +55,22 @@ export interface Account {
 export interface Connection {
   connector: ConnectorId;
   account: Account;
+  /** Unused for upload servers, whose token (if any) is in `server`. */
   tokens: TokenSet;
   /** ISO date. */
   connectedAt: string;
+  /** Only for upload servers: what was entered in Settings. */
+  server?: UploadServerSettings;
+}
+
+/** An upload server as entered in Settings. See docs/guides/upload-servers.md. */
+export interface UploadServerSettings {
+  /** Shown in the save dialog, e.g. "Team uploads". */
+  name: string;
+  /** The URL that hands out upload URLs. */
+  endpoint: string;
+  /** Sent as `Authorization: Bearer <token>` when set. */
+  token?: string;
 }
 
 /**
@@ -110,8 +127,13 @@ export interface Connector {
   accepts: MediaKind[];
   /** Origins the API calls need, requested as optional host permissions on Connect. */
   hosts: string[];
-  /** Null for destinations without an account (the local download). */
+  /** Null for destinations without a sign-in (the local download, upload servers). */
   auth: OAuthConfig | null;
+  /**
+   * `always` when every upload gets a public link anyway, so there's no share switch.
+   * Defaults to `optional`.
+   */
+  links?: 'optional' | 'always';
   /** Called right after signing in. */
   fetchAccount?: (fetch: AuthorizedFetch) => Promise<Account>;
   upload: (job: UploadJob, ctx: UploadContext) => Promise<UploadResult>;
