@@ -23,6 +23,7 @@ import { Separator } from '@/components/ui/separator';
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { UploadDialog, useConnectedDestinations } from '@/components/upload-dialog';
+import { UploadList } from '@/components/upload-list';
 import { useBeforeUnload } from '@/hooks/use-before-unload';
 import { useSettings } from '@/hooks/use-settings';
 import {
@@ -417,6 +418,10 @@ export function ScreenshotEditor({
             />
           )}
         </div>
+      </div>
+
+      <div className="max-h-48 shrink-0 overflow-auto empty:hidden">
+        <UploadList kind="screenshot" id={screenshot.id} />
       </div>
     </div>
   );

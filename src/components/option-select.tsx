@@ -1,3 +1,4 @@
+import type { ComponentType } from 'react';
 import {
   Select,
   SelectContent,
@@ -12,6 +13,8 @@ export interface SelectOption<T extends string = string> {
   label: string;
   value: T;
   disabled?: boolean;
+  /** Shown before the label, in the list and in the closed select. */
+  icon?: ComponentType<{ className?: string }>;
 }
 
 /**
@@ -36,17 +39,36 @@ export function OptionSelect<T extends string>({
   return (
     <Select items={items} value={value} onValueChange={(next) => next !== null && onValueChange(next as T)}>
       <SelectTrigger id={id} className={cn('w-full', className)}>
-        <SelectValue placeholder={placeholder} />
+        {items.some((item) => item.icon) ? (
+          <SelectValue placeholder={placeholder}>
+            {(selected: T | null) => {
+              const item = items.find((i) => i.value === selected);
+              return item ? <OptionLabel item={item} /> : placeholder;
+            }}
+          </SelectValue>
+        ) : (
+          <SelectValue placeholder={placeholder} />
+        )}
       </SelectTrigger>
       <SelectContent>
         <SelectGroup>
           {items.map((item) => (
             <SelectItem key={item.value} value={item.value} disabled={item.disabled}>
-              {item.label}
+              <OptionLabel item={item} />
             </SelectItem>
           ))}
         </SelectGroup>
       </SelectContent>
     </Select>
+  );
+}
+
+function OptionLabel({ item }: { item: SelectOption }) {
+  const Icon = item.icon;
+  return (
+    <>
+      {Icon && <Icon className="size-4 shrink-0" />}
+      {item.label}
+    </>
   );
 }

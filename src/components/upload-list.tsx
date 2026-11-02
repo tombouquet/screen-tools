@@ -43,8 +43,11 @@ export function UploadList({ kind, id, onUploaded }: { kind: UploadSourceKind; i
           const size = progress?.size ?? upload.size;
           const percent = size ? Math.min(100, Math.round((sent / size) * 100)) : 0;
           const { openUrl: open, shareUrl: share } = upload.result ?? {};
+          // The public link when there is one, otherwise the owner's link.
+          const link = share ?? open;
           return (
             <li key={upload.id} className="flex flex-wrap items-center gap-3 px-3 py-2.5">
+              <connector.icon className="size-5 shrink-0" />
               <div className="min-w-48 flex-1 space-y-1">
                 <p className="text-sm">
                   <span className="font-medium">{connector.name}</span>{' '}
@@ -64,7 +67,22 @@ export function UploadList({ kind, id, onUploaded }: { kind: UploadSourceKind; i
                     Stopped at {percent}% when the window closed.
                   </p>
                 ) : (
-                  upload.result?.shareError && <p className="text-muted-foreground text-xs">{upload.result.shareError}</p>
+                  <>
+                    {link && (
+                      <a
+                        href={link}
+                        target="_blank"
+                        rel="noreferrer"
+                        title={link}
+                        className="text-muted-foreground hover:text-foreground block truncate text-xs underline underline-offset-4"
+                      >
+                        {link}
+                      </a>
+                    )}
+                    {upload.result?.shareError && (
+                      <p className="text-muted-foreground text-xs">{upload.result.shareError}</p>
+                    )}
+                  </>
                 )}
               </div>
               {!running && <StatusBadge upload={upload} />}

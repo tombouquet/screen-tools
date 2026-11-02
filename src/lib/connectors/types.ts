@@ -1,6 +1,7 @@
 // The contract every upload destination implements. The settings page, save dialog and
 // upload status only know about this interface and the list in registry.ts, so adding a
 // service is one connector file plus its OAuth app settings.
+import type { ComponentType } from 'react';
 
 export type ConnectorId = 'local' | 'google-drive' | 'dropbox';
 
@@ -104,6 +105,8 @@ export interface Connector {
   name: string;
   /** One line for Settings, e.g. "Uploads go to a Screen Tools folder in your Drive." */
   description: string;
+  /** Shown next to the name in Settings and the save dialog. Sized by `className`. */
+  icon: ComponentType<{ className?: string }>;
   accepts: MediaKind[];
   /** Origins the API calls need, requested as optional host permissions on Connect. */
   hosts: string[];

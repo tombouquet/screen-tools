@@ -145,7 +145,7 @@ function UploadDialogContent({
                     <Label htmlFor="upload-destination">Upload to</Label>
                     <OptionSelect
                       id="upload-destination"
-                      items={destinations.map((d) => ({ value: d.id, label: d.name }))}
+                      items={destinations.map((d) => ({ value: d.id, label: d.name, icon: d.icon }))}
                       value={destination.id}
                       onValueChange={(id) => {
                         setChosen(id);

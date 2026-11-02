@@ -7,6 +7,7 @@ import { MonitorCamera } from '@/components/icons';
 import { ConfirmDeleteDialog, UnsavedDialog } from '@/components/confirm-dialog';
 import { RecordedVideo } from '@/components/recorded-video';
 import { LargeFileNotice, useSaveVideo } from '@/components/save-video';
+import { UploadList } from '@/components/upload-list';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -450,6 +451,7 @@ function FinishedView({
             </Button>
           </div>
         </div>
+        <UploadList kind="recording" id={recording.id} onUploaded={onSaved} />
       </CardContent>
       <UnsavedDialog
         open={unsavedOpen}

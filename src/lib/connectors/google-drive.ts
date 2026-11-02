@@ -1,5 +1,6 @@
 // Google Drive. With the drive.file scope the app only sees files and folders it made
 // itself, so uploads go to a "Screen Tools" folder it creates on first use.
+import { GoogleDriveIcon } from '@/components/icons';
 import { DRIVE_API, errorReason, jsonBody, send, sendJson } from './google-drive/api';
 import { uploadResumable } from './google-drive/resumable';
 import { ReconnectNeeded, type AuthorizedFetch, type Connector, type UploadContext } from './types';
@@ -55,6 +56,7 @@ async function shareWithAnyone(fileId: string, ctx: UploadContext): Promise<stri
 export const googleDrive: Connector = {
   id: 'google-drive',
   name: 'Google Drive',
+  icon: GoogleDriveIcon,
   description: 'Uploads go to a Screen Tools folder in your Drive.',
   accepts: ['video', 'image'],
   hosts: ['https://www.googleapis.com/*', 'https://oauth2.googleapis.com/*'],
