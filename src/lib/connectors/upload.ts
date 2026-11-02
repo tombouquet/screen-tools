@@ -186,7 +186,9 @@ async function run(id: number, row: UploadRow, blob: Blob): Promise<UploadResult
         throw new UploadCancelled();
       }
       console.error(error);
-      await updateUpload(id, { status: 'failed', sentBytes, error: errorMessage(error) });
+      // Nothing lists an upload without a source, so a failed one would linger unseen.
+      if (row.sourceKind === undefined) await deleteUpload(id);
+      else await updateUpload(id, { status: 'failed', sentBytes, error: errorMessage(error) });
       throw error;
     }
   };
@@ -222,7 +224,9 @@ export async function startUpload({ source, connectorId, job, blobIsSource }: St
     size: job.blob.size,
     status: 'uploading',
     sentBytes: 0,
-    blob: blobIsSource && source ? undefined : job.blob,
+    // A file the app doesn't keep can't be resumed (nothing lists it), so a copy is only
+    // kept for a source's compressed or re-encoded file.
+    blob: source && !blobIsSource ? job.blob : undefined,
     date: new Date().toISOString(),
   };
   const id = await addUpload(row);
