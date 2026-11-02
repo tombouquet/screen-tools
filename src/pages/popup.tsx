@@ -1,12 +1,28 @@
 // The toolbar popup: one click to start a recording or take a screenshot.
-import { AppWindow, Camera, Eye, Film, Image, Monitor, ScrollText, Settings, SquareDashedMousePointer, type LucideIcon } from 'lucide-react';
+import {
+  AppWindow,
+  Camera,
+  Eye,
+  Film,
+  Image,
+  Mic,
+  MicOff,
+  Monitor,
+  ScrollText,
+  Settings,
+  SquareDashedMousePointer,
+  type LucideIcon,
+} from 'lucide-react';
 import { browser } from 'wxt/browser';
 import { MonitorCamera } from '@/components/icons';
 import { ThemeProvider } from '@/components/theme-provider';
 import { Button } from '@/components/ui/button';
+import { Switch } from '@/components/ui/switch';
+import { useSettings } from '@/hooks/use-settings';
 import { openAppTab } from '@/lib/download';
 import type { AppMessage, ScreenshotMode } from '@/lib/messages';
-import { getSettings, screenshotMaxWidth, type CaptureSource } from '@/lib/settings';
+import { getSettings, screenshotMaxWidth, updateSettings, type AudioSource, type CaptureSource } from '@/lib/settings';
+import { cn } from '@/lib/utils';
 
 const RECORD: { source: CaptureSource; label: string; icon: LucideIcon }[] = [
   { source: 'screen', label: 'Screen', icon: Monitor },
@@ -42,6 +58,37 @@ async function screenshot(mode: ScreenshotMode): Promise<void> {
   await send({ type: 'screenshot', mode, tabId: tab.id, windowId: tab.windowId, maxWidth });
 }
 
+const hasMic = (audioSource: AudioSource) => audioSource === 'microphone' || audioSource === 'system-microphone';
+
+/** Turns the mic on or off and keeps the system audio choice as it was. */
+function withMic(audioSource: AudioSource, on: boolean): AudioSource {
+  const system = audioSource === 'system' || audioSource === 'system-microphone';
+  if (on) return system ? 'system-microphone' : 'microphone';
+  return system ? 'system' : 'none';
+}
+
+/**
+ * Saved straight to settings, so the recorder the record buttons open uses it. The popup never
+ * asks for the mic itself (it closes when the prompt takes focus); the recorder asks when it starts.
+ */
+function MicToggle() {
+  const { audioSource } = useSettings();
+  const on = hasMic(audioSource);
+  const Icon = on ? Mic : MicOff;
+  return (
+    <label className="border-border bg-background hover:bg-muted dark:border-input dark:bg-input/30 dark:hover:bg-input/50 flex h-10 cursor-pointer items-center gap-3 rounded-lg border px-3 text-sm font-medium transition-colors">
+      <Icon className={cn('size-5', !on && 'text-muted-foreground')} />
+      <span className="flex-1">Microphone</span>
+      <span className="text-muted-foreground text-xs">{on ? 'On' : 'Off'}</span>
+      <Switch
+        aria-label="Record the microphone"
+        checked={on}
+        onCheckedChange={(checked) => updateSettings({ audioSource: withMic(getSettings().audioSource, checked) })}
+      />
+    </label>
+  );
+}
+
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
   return (
     <section className="space-y-1.5">
@@ -74,6 +121,7 @@ export function PopupPage() {
               {label}
             </Button>
           ))}
+          <MicToggle />
         </Section>
 
         <Section title="Screenshot">

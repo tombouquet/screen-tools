@@ -54,7 +54,8 @@ export async function takeScreenshot(mode: ScreenshotMode, tabId: number, window
     const blob = await limitWidth(captured, maxWidth);
     const { width, height } = await createImageBitmap(blob);
     const id = await addScreenshot({ blob, original: blob, width, height, title: tab.title, url: tab.url });
-    await browser.tabs.create({ url: appUrl(`/screenshots/${id}`), index: tab.index + 1, openerTabId: tabId });
+    // `?new` tells the editor it's a fresh capture, so it can copy it to the clipboard.
+    await browser.tabs.create({ url: appUrl(`/screenshots/${id}?new`), index: tab.index + 1, openerTabId: tabId });
   } catch (error) {
     // The browser refusing a page is expected; console.error would list it on Chrome's extensions page.
     if (isBlockedPage(error)) console.warn(error);
