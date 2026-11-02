@@ -246,8 +246,15 @@ export async function resume(uploadId: number, options: { fresh?: boolean } = {}
   return { id: uploadId, promise: run(uploadId, { ...row, ...patch }, blob) };
 }
 
-/** Starts a failed upload again from the beginning. */
-export const retry = (uploadId: number) => resume(uploadId, { fresh: true });
+/**
+ * Tries a failed upload again. It carries on from the service's saved session when there
+ * is one (e.g. the network dropped for longer than the retries waited), so a big file
+ * doesn't start over; the connectors start a new session if that one is gone.
+ */
+export async function retry(uploadId: number): Promise<RunningUpload> {
+  const upload = await getUpload(uploadId);
+  return resume(uploadId, { fresh: !upload?.resumeState });
+}
 
 /**
  * Marks rows left 'uploading' by a window that's gone as 'interrupted'. Uploads still
