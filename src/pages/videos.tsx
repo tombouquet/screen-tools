@@ -167,7 +167,7 @@ function RecordingView({
       </CardHeader>
       <CardContent className="space-y-4">
         {blob.size > LARGE_FILE_BYTES && <LargeFileNotice size={blob.size} onCompress={() => void save(true)} />}
-        <RecordedVideo blob={blob} />
+        <RecordedVideo blob={blob} durationMs={recording.durationMs} />
         <div className="flex flex-wrap justify-between gap-2">
           <BackButton />
           <div className="flex flex-wrap gap-2">

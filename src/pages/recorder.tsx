@@ -432,7 +432,7 @@ function FinishedView({
         {recording.blob.size > LARGE_FILE_BYTES && (
           <LargeFileNotice size={recording.blob.size} onCompress={() => void save(true)} />
         )}
-        <RecordedVideo blob={recording.blob} />
+        <RecordedVideo blob={recording.blob} durationMs={recording.durationMs} />
         <div className="flex flex-wrap justify-between gap-2">
           <Button
             variant="ghost"
