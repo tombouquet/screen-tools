@@ -24,6 +24,8 @@ const SPEEDS = [1, 1.25, 1.5, 2, 0.5] as const;
 const IDLE_MS = 2500;
 
 const formatTime = (seconds: number) => formatDuration(seconds * 1000);
+/** Pixels from the bottom that the control bar covers, which captions are kept above. */
+const CONTROLS_HEIGHT = 72;
 
 /**
  * Plays a recording with our own controls instead of the browser's: play, skip, a
@@ -93,21 +95,24 @@ export function RecordedVideo({
     const textTrack = track.current?.track;
     if (!textTrack) return;
     textTrack.mode = captionsOn ? 'showing' : 'hidden';
-    // Lift the captions above the control bar once the cues are in: their bottom edge
-    // sits at 75% of the height instead of the default, the very bottom.
+    // Lift the captions above the control bar once the cues are in, and again when the
+    // player changes size: the bar is a fixed height, so it's a bigger share of a small player.
     const lift = () => {
-      for (const cue of Array.from(textTrack.cues ?? [])) {
-        if (!('line' in cue)) continue;
-        const vtt = cue as VTTCue;
-        vtt.snapToLines = false;
-        vtt.line = 75;
-        vtt.lineAlign = 'end';
-      }
+      // Counted in caption lines from the bottom, which the browser makes 5% of the video's
+      // height, so cues that overlap in time still stack instead of drawing over each other.
+      const lineHeight = 0.05 * (video.current?.clientHeight || 400);
+      const line = -Math.ceil(CONTROLS_HEIGHT / lineHeight);
+      for (const cue of Array.from(textTrack.cues ?? [])) if ('line' in cue) (cue as VTTCue).line = line;
     };
     lift();
     const el = track.current;
     el?.addEventListener('load', lift);
-    return () => el?.removeEventListener('load', lift);
+    const resize = new ResizeObserver(lift);
+    if (video.current) resize.observe(video.current);
+    return () => {
+      el?.removeEventListener('load', lift);
+      resize.disconnect();
+    };
   }, [captionsUrl, captionsOn]);
 
   const toggleCaptions = useCallback(() => setCaptionsOn((on) => !on), []);

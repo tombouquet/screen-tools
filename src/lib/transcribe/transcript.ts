@@ -31,13 +31,17 @@ function timestamp(seconds: number, separator: '.' | ','): string {
 /** Cue text can't hold a blank line or `-->`, which would end or break the cue. */
 const cueText = (text: string) => text.replace(/\s*\n\s*/g, ' ').replace(/-->/g, '->').trim();
 
+/** Whisper's lines can run into the next one; a cue ends when the next starts so only one shows at a time. */
+const cues = (segments: TranscriptSegment[]) =>
+  segments.map((s, i) => ({ ...s, end: Math.max(s.start, Math.min(s.end, segments[i + 1]?.start ?? Infinity)) }));
+
 export function toVtt(segments: TranscriptSegment[]): string {
-  const cues = segments.map((s) => `${timestamp(s.start, '.')} --> ${timestamp(s.end, '.')}\n${cueText(s.text)}`);
-  return `WEBVTT\n\n${cues.join('\n\n')}\n`;
+  const lines = cues(segments).map((s) => `${timestamp(s.start, '.')} --> ${timestamp(s.end, '.')}\n${cueText(s.text)}`);
+  return `WEBVTT\n\n${lines.join('\n\n')}\n`;
 }
 
 export function toSrt(segments: TranscriptSegment[]): string {
-  return segments
+  return cues(segments)
     .map((s, i) => `${i + 1}\n${timestamp(s.start, ',')} --> ${timestamp(s.end, ',')}\n${cueText(s.text)}\n`)
     .join('\n');
 }
