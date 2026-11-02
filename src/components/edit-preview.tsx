@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { editLength, locate, placeSegments, type Edit } from '@/lib/edit/model';
 import type { EditSource } from '@/lib/edit/source';
+import { useObjectUrls } from '@/lib/edit/use-object-urls';
 
 /** How close to a segment's end playback moves on to the next one. */
 const END_SLACK_S = 1 / 60;
@@ -22,12 +23,7 @@ export function useEditPreview(edit: Edit, sources: Map<string, EditSource>) {
   const live = useRef({ placed, total, time });
   live.current = { placed, total, time };
 
-  const urls = useMemo(() => {
-    const map = new Map<string, string>();
-    for (const source of sources.values()) map.set(source.id, URL.createObjectURL(source.previewBlob));
-    return map;
-  }, [sources]);
-  useEffect(() => () => urls.forEach((url) => URL.revokeObjectURL(url)), [urls]);
+  const urls = useObjectUrls(useMemo(() => new Map([...sources.values()].map((s) => [s.id, s.previewBlob] as const)), [sources]));
 
 
   const pauseAll = () => videos.current.forEach((v) => v.pause());

@@ -72,6 +72,7 @@ import {
   type Thumbnail,
 } from '@/lib/edit/source';
 import { useHistory } from '@/lib/edit/use-history';
+import { useObjectUrls } from '@/lib/edit/use-object-urls';
 import { fileExtension, formatBytes, formatDuration, splitFileName } from '@/lib/formats';
 import { cn } from '@/lib/utils';
 
@@ -663,8 +664,9 @@ function VideoPicker({ onRecording, onFile }: { onRecording: (id: number, name: 
   const [live, setLive] = useState(new Set<number>());
   const [dragging, setDragging] = useState(false);
   const input = useRef<HTMLInputElement>(null);
-  const thumbs = useMemo(() => new Map(recordings?.flatMap((r) => (r.thumbnail ? [[r.id, URL.createObjectURL(r.thumbnail)] as const] : []))), [recordings]);
-  useEffect(() => () => thumbs.forEach((url) => URL.revokeObjectURL(url)), [thumbs]);
+  const thumbs = useObjectUrls(
+    useMemo(() => new Map(recordings?.flatMap((r) => (r.thumbnail ? [[r.id, r.thumbnail] as const] : []))), [recordings]),
+  );
   useEffect(() => {
     void listRecordings().then(setRecordings);
     void liveRecordingIds().then(setLive);
