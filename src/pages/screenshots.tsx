@@ -1,5 +1,5 @@
-import { ArrowLeft, CloudUpload, Copy, Download, Image as ImageIcon, Trash2, type LucideIcon } from 'lucide-react';
-import { useEffect, useState } from 'react';
+import { ArrowLeft, Copy, Download, Image as ImageIcon, Link2, Loader2, Trash2, type LucideIcon } from 'lucide-react';
+import { useEffect, useRef, useState } from 'react';
 import { toast } from 'sonner';
 import { ConfirmDeleteDialog } from '@/components/confirm-dialog';
 import { ScreenshotEditor } from '@/components/screenshot-editor';
@@ -7,11 +7,14 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
-import { UploadDialog, useConnectedDestinations, type UploadFile } from '@/components/upload-dialog';
+import type { UploadFile } from '@/components/upload-dialog';
+import { useQuickShare } from '@/hooks/use-quick-share';
 import { navigate } from '@/hooks/use-route';
+import { copyImageNow } from '@/lib/clipboard';
 import { downloadBlob } from '@/lib/download';
 import { screenshotFileName } from '@/lib/formats';
 import { getSettings } from '@/lib/settings';
+import { cn } from '@/lib/utils';
 import { MAX_SCREENSHOTS, deleteScreenshot, getScreenshot, listScreenshots, updateScreenshot, type Screenshot } from '@/lib/db';
 
 const dateFormat = new Intl.DateTimeFormat(undefined, { dateStyle: 'medium', timeStyle: 'short' });
@@ -72,8 +75,7 @@ function useObjectUrl(blob: Blob | undefined): string | undefined {
 function ScreenshotList() {
   const [screenshots, setScreenshots] = useState<Screenshot[]>();
   const [deleting, setDeleting] = useState<number>();
-  const [uploading, setUploading] = useState<Screenshot>();
-  const destinations = useConnectedDestinations('image');
+  const quickShare = useQuickShare();
 
   useEffect(() => {
     void listScreenshots().then(setScreenshots);
@@ -93,7 +95,7 @@ function ScreenshotList() {
       <CardHeader>
         <CardTitle>Screenshots</CardTitle>
         <CardDescription>
-          Your latest {MAX_SCREENSHOTS} screenshots. Take one from the toolbar icon; open one to edit, download or copy it.
+          Your latest {MAX_SCREENSHOTS} screenshots. Take one from the toolbar icon; open one to edit it. Share link uploads one and copies the link in one click.
         </CardDescription>
       </CardHeader>
       <CardContent>
@@ -107,7 +109,21 @@ function ScreenshotList() {
           {screenshots?.map((screenshot) => (
             <li key={screenshot.id} className="group relative">
               <Thumbnail screenshot={screenshot} />
-              <div className="absolute top-3 right-3 flex gap-1 opacity-0 transition-opacity group-focus-within:opacity-100 group-hover:opacity-100">
+              {/* Stays visible while its link is uploading, so the spinner shows. */}
+              <div
+                className={cn(
+                  'absolute top-3 right-3 flex gap-1 opacity-0 transition-opacity group-focus-within:opacity-100 group-hover:opacity-100',
+                  quickShare.isSharing(screenshot.id) && 'opacity-100',
+                )}
+              >
+                <QuickAction
+                  label={quickShare.destination ? `Share link: upload to ${quickShare.destination.name} and copy the link` : 'Share link'}
+                  icon={Link2}
+                  primary
+                  busy={quickShare.isSharing(screenshot.id)}
+                  disabled={!quickShare.ready || quickShare.isSharing(screenshot.id)}
+                  onClick={() => quickShare.share(screenshot.id, () => screenshotFile(screenshot), () => void markSaved(screenshot.id))}
+                />
                 <QuickAction
                   label="Copy"
                   icon={Copy}
@@ -120,9 +136,6 @@ function ScreenshotList() {
                   icon={Download}
                   onClick={() => void downloadScreenshot(screenshot).then(() => markSaved(screenshot.id))}
                 />
-                {destinations.length > 0 && (
-                  <QuickAction label="Upload" icon={CloudUpload} onClick={() => setUploading(screenshot)} />
-                )}
                 <QuickAction label="Delete" icon={Trash2} destructive onClick={() => setDeleting(screenshot.id)} />
               </div>
             </li>
@@ -136,14 +149,6 @@ function ScreenshotList() {
         title="Delete this screenshot?"
         description="It's removed from Screenshots. Copies you downloaded stay in your downloads."
       />
-      <UploadDialog
-        open={uploading !== undefined}
-        onOpenChange={(open) => !open && setUploading(undefined)}
-        kind="image"
-        source={uploading && { kind: 'screenshot', id: uploading.id }}
-        getFile={() => screenshotFile(uploading!)}
-        onUploaded={() => uploading && void markSaved(uploading.id)}
-      />
     </Card>
   );
 }
@@ -152,11 +157,19 @@ function QuickAction({
   label,
   icon: Icon,
   destructive,
+  primary,
+  busy,
+  disabled,
   onClick,
 }: {
   label: string;
   icon: LucideIcon;
   destructive?: boolean;
+  /** The one-click action, drawn filled so it stands out. */
+  primary?: boolean;
+  /** Shows a spinner in place of the icon. */
+  busy?: boolean;
+  disabled?: boolean;
   onClick: () => void;
 }) {
   return (
@@ -164,15 +177,16 @@ function QuickAction({
       <TooltipTrigger
         render={
           <Button
-            variant="secondary"
+            variant={primary ? 'default' : 'secondary'}
             size="icon-sm"
             aria-label={label}
+            disabled={disabled}
             onClick={onClick}
             className={destructive ? 'text-destructive hover:text-destructive shadow-sm' : 'shadow-sm'}
           />
         }
       >
-        <Icon />
+        {busy ? <Loader2 className="animate-spin" /> : <Icon />}
       </TooltipTrigger>
       <TooltipContent>{label}</TooltipContent>
     </Tooltip>
@@ -199,11 +213,44 @@ function Thumbnail({ screenshot }: { screenshot: Screenshot }) {
   );
 }
 
+/**
+ * True when the route says this screenshot was just taken (`?new`). The flag is taken
+ * off the address straight away, so a reload or Back doesn't count it as new again.
+ */
+function useJustCaptured(id: number): boolean {
+  const [fresh] = useState(() => /\?(.*&)?new(&|=|$)/.test(window.location.hash));
+  useEffect(() => {
+    if (fresh) history.replaceState(history.state, '', `#/screenshots/${id}`);
+  }, [fresh, id]);
+  return fresh;
+}
+
+/** Copies a fresh screenshot to the clipboard when "Copy screenshots to the clipboard" is on. */
+function useAutoCopy(screenshot: Screenshot | null | undefined, fresh: boolean): void {
+  const done = useRef(false);
+  useEffect(() => {
+    if (!fresh || !screenshot || done.current || !getSettings().copyScreenshots) return;
+    done.current = true;
+    const png = screenshot.blob;
+    void copyImageNow(png).then((copied) => {
+      if (copied) toast.success('Copied to clipboard', { description: 'Paste it anywhere, or edit it here first.' });
+      else
+        toast.info("Couldn't copy it straight away", {
+          description: 'The browser only allows it with a click.',
+          duration: 15_000,
+          action: { label: 'Copy', onClick: () => void copyScreenshot(screenshot) },
+        });
+    });
+  }, [screenshot, fresh]);
+}
+
 function ScreenshotDetail({ id }: { id: number }) {
   const [screenshot, setScreenshot] = useState<Screenshot | null>();
   // Bumped on revert so the editor starts over on the original.
   const [revision, setRevision] = useState(0);
   const [confirmOpen, setConfirmOpen] = useState(false);
+  const fresh = useJustCaptured(id);
+  useAutoCopy(screenshot, fresh);
 
   useEffect(() => {
     void getScreenshot(id).then((row) => setScreenshot(row ?? null));

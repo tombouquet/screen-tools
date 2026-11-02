@@ -1,6 +1,9 @@
 import { FileImage, Image, ImageDown } from 'lucide-react';
+import { useEffect } from 'react';
 import { ChoiceTiles } from '@/components/choice-tiles';
-import { SectionHeader, SettingGroup } from '@/components/settings/layout';
+import { SectionHeader, SettingGroup, SettingRow } from '@/components/settings/layout';
+import { Switch } from '@/components/ui/switch';
+import { hasClipboardAccess, requestClipboardAccess } from '@/lib/clipboard';
 import {
   SCREENSHOT_QUALITIES,
   updateSettings,
@@ -14,9 +17,15 @@ import { cn } from '@/lib/utils';
 const QUALITY_NAMES: Record<ScreenshotQualityId, string> = { native: 'Native', '2560': 'High', '1920': 'Medium', '1280': 'Small' };
 
 export function ScreenshotsSection({ settings }: { settings: Settings }) {
+  // Firefox: access taken away in about:addons turns the setting off, so it says what happens.
+  useEffect(() => {
+    if (!settings.copyScreenshots) return;
+    void hasClipboardAccess().then((allowed) => !allowed && updateSettings({ copyScreenshots: false }));
+  }, [settings.copyScreenshots]);
+
   return (
     <div className="space-y-6">
-      <SectionHeader icon={Image} title="Screenshots" description="Size and file type for screenshots of a page." />
+      <SectionHeader icon={Image} title="Screenshots" description="Size, file type and what happens after a screenshot." />
 
       <SettingGroup
         title="Size"
@@ -46,6 +55,25 @@ export function ScreenshotsSection({ settings }: { settings: Settings }) {
             { value: 'jpg', label: 'JPG', icons: [ImageDown], description: 'Smaller, for photos' },
           ]}
         />
+      </SettingGroup>
+
+      <SettingGroup title="After a screenshot">
+        <SettingRow
+          id="copy-screenshots"
+          label="Copy screenshots to the clipboard"
+          description="Each new screenshot goes on the clipboard as a PNG as soon as it's taken, ready to paste. The editor still opens."
+        >
+          <Switch
+            id="copy-screenshots"
+            className="sm:justify-self-end"
+            checked={settings.copyScreenshots}
+            onCheckedChange={(on) => {
+              if (!on) return updateSettings({ copyScreenshots: false });
+              // Asked straight from the click: Firefox only shows the prompt then.
+              void requestClipboardAccess().then((allowed) => allowed && updateSettings({ copyScreenshots: true }));
+            }}
+          />
+        </SettingRow>
       </SettingGroup>
     </div>
   );

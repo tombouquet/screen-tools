@@ -4,8 +4,11 @@ import {
   Copy,
   Crop,
   Download,
+  Ellipsis,
   Grid3x3,
   Highlighter,
+  Link2,
+  Loader2,
   MoveUpRight,
   Pencil,
   Redo2,
@@ -17,14 +20,21 @@ import {
 } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import { toast } from 'sonner';
-import { OptionSelect } from '@/components/option-select';
 import { Button } from '@/components/ui/button';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 import { Separator } from '@/components/ui/separator';
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { UploadDialog, useConnectedDestinations } from '@/components/upload-dialog';
 import { UploadList } from '@/components/upload-list';
 import { useBeforeUnload } from '@/hooks/use-before-unload';
+import { useQuickShare } from '@/hooks/use-quick-share';
 import { useSettings } from '@/hooks/use-settings';
 import {
   COLORS,
@@ -56,11 +66,6 @@ const TOOLS: { tool: Tool; label: string; icon: LucideIcon }[] = [
   { tool: 'text', label: 'Text', icon: Type },
   { tool: 'blur', label: 'Blur (pixelate)', icon: Grid3x3 },
   { tool: 'crop', label: 'Crop', icon: Crop },
-];
-
-const FORMAT_OPTIONS: { value: ImageFormat; label: string }[] = [
-  { value: 'png', label: 'PNG' },
-  { value: 'jpg', label: 'JPG' },
 ];
 
 const mimeOf = (format: ImageFormat) => (format === 'png' ? 'image/png' : 'image/jpeg');
@@ -115,6 +120,8 @@ export function ScreenshotEditor({
   const [busy, setBusy] = useState(false);
   const [uploadOpen, setUploadOpen] = useState(false);
   const destinations = useConnectedDestinations('image');
+  const quickShare = useQuickShare();
+  const sharing = quickShare.isSharing(screenshot.id);
   const stageRef = useRef<HTMLDivElement>(null);
   const [stage, setStage] = useState<{ width: number; height: number }>();
 
@@ -284,11 +291,11 @@ export function ScreenshotEditor({
     onSaved({ edited, saved: true });
   };
 
-  const download = async () => {
+  const download = async (format: ImageFormat) => {
     if (!image) return;
+    updateSettings({ imageFormat: format });
     setBusy(true);
     try {
-      const format = settings.imageFormat;
       const blob = await flatten(image, doc, mimeOf(format));
       downloadBlob(blob, screenshotFileName(new Date(screenshot.date), format));
       await persist();
@@ -311,6 +318,13 @@ export function ScreenshotEditor({
     } finally {
       setBusy(false);
     }
+  };
+
+  /** The edited image in the download format, for uploading. */
+  const getUploadFile = async () => {
+    const format = settings.imageFormat;
+    const blob = await flatten(image!, doc, mimeOf(format));
+    return { blob, fileName: screenshotFileName(new Date(screenshot.date), format), mimeType: mimeOf(format) };
   };
 
   const scale = cssScale();
@@ -379,33 +393,68 @@ export function ScreenshotEditor({
           </IconButton>
         )}
         <div className="ml-auto flex items-center gap-2">
-          <OptionSelect
-            className="w-20"
-            items={FORMAT_OPTIONS}
-            value={settings.imageFormat}
-            onValueChange={(imageFormat) => updateSettings({ imageFormat })}
-          />
+          <Tooltip>
+            <TooltipTrigger
+              render={
+                <Button
+                  disabled={!image || busy || !quickShare.ready || sharing}
+                  onClick={() =>
+                    // Once the editor is gone (its image closed), just mark it saved.
+                    quickShare.share(screenshot.id, getUploadFile, () =>
+                      void persist().catch(() => updateScreenshot(screenshot.id, { saved: true })),
+                    )
+                  }
+                />
+              }
+            >
+              {sharing ? <Loader2 className="animate-spin" /> : <Link2 />}
+              {sharing ? 'Uploading…' : 'Share link'}
+            </TooltipTrigger>
+            <TooltipContent>
+              {quickShare.destination
+                ? `Upload to ${quickShare.destination.name} and copy the link`
+                : 'Upload and copy the link. Connect a service in Settings first.'}
+            </TooltipContent>
+          </Tooltip>
           <Button variant="outline" disabled={!image || busy} onClick={() => void copy()}>
             <Copy /> Copy
           </Button>
-          {destinations.length > 0 && (
-            <Button variant="outline" disabled={!image || busy} onClick={() => setUploadOpen(true)}>
-              <CloudUpload /> Upload
-            </Button>
-          )}
-          <Button disabled={!image || busy} onClick={() => void download()}>
-            <Download /> Download
-          </Button>
+          <DropdownMenu>
+            <Tooltip>
+              <TooltipTrigger
+                render={
+                  <DropdownMenuTrigger
+                    render={<Button variant="outline" size="icon" disabled={!image || busy} aria-label="More options" />}
+                  />
+                }
+              >
+                <Ellipsis />
+              </TooltipTrigger>
+              <TooltipContent>Download or upload</TooltipContent>
+            </Tooltip>
+            <DropdownMenuContent align="end" className="w-52">
+              <DropdownMenuItem onClick={() => void download('png')}>
+                <Download /> Download PNG
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => void download('jpg')}>
+                <Download /> Download JPG
+              </DropdownMenuItem>
+              {destinations.length > 0 && (
+                <>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem onClick={() => setUploadOpen(true)}>
+                    <CloudUpload /> Upload to…
+                  </DropdownMenuItem>
+                </>
+              )}
+            </DropdownMenuContent>
+          </DropdownMenu>
           <UploadDialog
             open={uploadOpen}
             onOpenChange={setUploadOpen}
             kind="image"
             source={{ kind: 'screenshot', id: screenshot.id }}
-            getFile={async () => {
-              const format = settings.imageFormat;
-              const blob = await flatten(image!, doc, mimeOf(format));
-              return { blob, fileName: screenshotFileName(new Date(screenshot.date), format), mimeType: mimeOf(format) };
-            }}
+            getFile={getUploadFile}
             onUploaded={() => void persist()}
           />
         </div>

@@ -19,6 +19,11 @@ export interface PlatformCapabilities {
   tabCapture: boolean;
   /** The screen picker only opens from a click in the page, so the toolbar can't start a recording on its own. */
   screenPickerNeedsGesture: boolean;
+  /**
+   * Pages can only write to the clipboard without a click when the extension has the
+   * optional `clipboardWrite` permission (Firefox). Chrome only needs the page focused.
+   */
+  clipboardNeedsPermission: boolean;
 }
 
 export interface ScreenCaptureProvider {

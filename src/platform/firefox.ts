@@ -27,6 +27,7 @@ export const firefoxPlatform: Platform = {
     systemAudio: false,
     tabCapture: false,
     screenPickerNeedsGesture: true,
+    clipboardNeedsPermission: true,
   },
   screen: { captureScreen },
   copy: {
