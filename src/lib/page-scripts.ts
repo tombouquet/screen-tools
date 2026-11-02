@@ -11,9 +11,12 @@ export interface AreaSelection {
   viewportWidth: number;
 }
 
-/** Lets the user drag out a rectangle. Resolves null on Escape. */
+/** Lets the user drag out a rectangle. Resolves null on Escape or cancelAreaSelection. */
 export function selectArea(): Promise<AreaSelection | null> {
   const ID = 'screen-tools-area-select';
+  const CANCEL = 'screen-tools-cancel-area';
+  // Cancels a picker left open, so its capture finishes instead of waiting forever.
+  window.dispatchEvent(new Event(CANCEL));
   document.getElementById(ID)?.remove();
 
   return new Promise((resolve) => {
@@ -43,14 +46,18 @@ export function selectArea(): Promise<AreaSelection | null> {
 
     const cleanup = () => {
       window.removeEventListener('keydown', onKey, true);
+      window.removeEventListener(CANCEL, onCancel);
       host.remove();
+    };
+    const onCancel = () => {
+      cleanup();
+      resolve(null);
     };
     const onKey = (event: KeyboardEvent) => {
       if (event.key !== 'Escape') return;
       event.preventDefault();
       event.stopPropagation();
-      cleanup();
-      resolve(null);
+      onCancel();
     };
 
     layer.addEventListener('pointerdown', (event) => {
@@ -101,8 +108,19 @@ export function selectArea(): Promise<AreaSelection | null> {
       );
     });
     window.addEventListener('keydown', onKey, true);
+    window.addEventListener(CANCEL, onCancel);
     document.documentElement.append(host);
   });
+}
+
+/** Closes an open area picker, as if Escape was pressed. */
+export function cancelAreaSelection(): void {
+  window.dispatchEvent(new Event('screen-tools-cancel-area'));
+}
+
+/** Set on window between preparePage and restorePage. Injected scripts share one window per tab. */
+interface FullPageState {
+  screenToolsFullPage?: { stopped: boolean; onKey: (event: KeyboardEvent) => void };
 }
 
 export interface PageMetrics {
@@ -113,8 +131,17 @@ export interface PageMetrics {
   scrollY: number;
 }
 
-/** Hides the scrollbar and turns off smooth scrolling, then measures the page. */
+/** Hides the scrollbar, turns off smooth scrolling and listens for Escape, then measures the page. */
 export function preparePage(): PageMetrics {
+  const state = window as Window & FullPageState;
+  const onKey = (event: KeyboardEvent) => {
+    if (event.key !== 'Escape' || !state.screenToolsFullPage) return;
+    event.preventDefault();
+    event.stopPropagation();
+    state.screenToolsFullPage.stopped = true;
+  };
+  state.screenToolsFullPage = { stopped: false, onKey };
+  window.addEventListener('keydown', onKey, true);
   const style = document.createElement('style');
   style.id = 'screen-tools-full-page';
   style.textContent =
@@ -130,11 +157,23 @@ export function preparePage(): PageMetrics {
   };
 }
 
-/** Scrolls, waits for the page to paint, and returns where it actually landed. */
-export function scrollPage(y: number): Promise<number> {
+export interface ScrollResult {
+  /** Where the page actually landed. */
+  y: number;
+  /** Escape was pressed since preparePage. */
+  stopped: boolean;
+}
+
+/** Scrolls and waits for the page to paint. */
+export function scrollPage(y: number): Promise<ScrollResult> {
   window.scrollTo(0, y);
+  const state = window as Window & FullPageState;
   return new Promise((resolve) =>
-    requestAnimationFrame(() => requestAnimationFrame(() => setTimeout(() => resolve(window.scrollY), 100))),
+    requestAnimationFrame(() =>
+      requestAnimationFrame(() =>
+        setTimeout(() => resolve({ y: window.scrollY, stopped: state.screenToolsFullPage?.stopped ?? false }), 100),
+      ),
+    ),
   );
 }
 
@@ -150,6 +189,9 @@ export function hideFixedElements(): void {
 
 /** Undoes preparePage and hideFixedElements and scrolls back. */
 export function restorePage(x: number, y: number): void {
+  const state = window as Window & FullPageState;
+  if (state.screenToolsFullPage) window.removeEventListener('keydown', state.screenToolsFullPage.onKey, true);
+  delete state.screenToolsFullPage;
   document.getElementById('screen-tools-full-page')?.remove();
   for (const element of document.querySelectorAll<HTMLElement>('[data-screen-tools-visibility]')) {
     const previous = element.dataset.screenToolsVisibility;

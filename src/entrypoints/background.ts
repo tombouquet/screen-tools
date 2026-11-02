@@ -1,11 +1,11 @@
 // Opens the recorder in its own small window when the toolbar popup asks (one window
 // at a time) and takes screenshots. Opens the home page after installs and version
-// changes. Mid-recording the popup is off, so a toolbar click lands here and stops the
-// recording.
+// changes. During a recording, the area picker or a full-page screenshot the popup is
+// off, so a toolbar click lands here and stops it.
 import { browser } from 'wxt/browser';
 import { appUrl } from '@/lib/download';
 import type { AppMessage } from '@/lib/messages';
-import { takeScreenshot } from '@/lib/screenshot';
+import { stopScreenshot, takeScreenshot } from '@/lib/screenshot';
 import { resetToolbar } from '@/lib/toolbar';
 import { currentVersion } from '@/lib/version';
 
@@ -74,8 +74,10 @@ export default defineBackground(() => {
     await resetToolbar();
   });
 
-  // Only fires while the popup is off, i.e. during a countdown or recording.
-  browser.action.onClicked.addListener(() => void stopRecording());
+  // Only fires while the popup is off: during a screenshot, a countdown or a recording.
+  browser.action.onClicked.addListener(() => {
+    if (!stopScreenshot()) void stopRecording();
+  });
 
   browser.runtime.onMessage.addListener((message: AppMessage) => {
     if (message?.type === 'openApp') void openApp(message.route);
