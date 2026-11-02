@@ -87,7 +87,10 @@ export function RecorderPage() {
   const sessionRef = useRef<RecordingSession>(undefined);
 
   const busy = phase.kind !== 'idle' && phase.kind !== 'finished';
-  useEffect(() => setBusy(busy), [busy]);
+  useEffect(() => {
+    setBusy(busy);
+    return () => setBusy(false);
+  }, [busy]);
   useBeforeUnload(busy || (phase.kind === 'finished' && !phase.saved));
 
   /** Stops the recording, or cancels it if the countdown is still running. */

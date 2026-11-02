@@ -1,4 +1,5 @@
 import { Film, Image, PlayCircle, Settings, Video } from 'lucide-react';
+import { useEffect } from 'react';
 import { ThemeProvider } from '@/components/theme-provider';
 import { Toaster } from '@/components/ui/sonner';
 import { TooltipProvider } from '@/components/ui/tooltip';
@@ -49,18 +50,36 @@ export function App() {
   // The screenshot editor fills the tab exactly; it never scrolls the page.
   const wide = /^\/screenshots\/\d+$/.test(path);
 
+  // Mid-recording, the header links or the browser's Back could change the route and
+  // unmount the recorder, which would end the recording. Keep it on screen and put the
+  // route back instead.
+  useEffect(() => {
+    if (busy && path !== '/') navigate('/');
+  }, [busy, path]);
+
   return (
     <ThemeProvider>
       <TooltipProvider>
         <div className={cn('mx-auto flex flex-col gap-4 p-4', wide ? 'h-screen max-w-none' : 'min-h-screen max-w-4xl')}>
           <header className="flex items-center gap-3">
-            <a href="#/home" className="flex items-center gap-3" title="Home">
+            <a
+              href="#/home"
+              className={cn('flex items-center gap-3', busy && 'pointer-events-none')}
+              title="Home"
+              aria-disabled={busy || undefined}
+              tabIndex={busy ? -1 : undefined}
+            >
               <img src="/icon/48.png" alt="" className="size-7" />
               <h1 className="font-semibold">Screen Tools</h1>
             </a>
             <a
               href="#/changelog"
-              className="text-muted-foreground hover:text-foreground text-xs underline-offset-4 hover:underline"
+              className={cn(
+                'text-muted-foreground hover:text-foreground text-xs underline-offset-4 hover:underline',
+                busy && 'pointer-events-none',
+              )}
+              aria-disabled={busy || undefined}
+              tabIndex={busy ? -1 : undefined}
               title="Changelog"
             >
               v{currentVersion()}
@@ -85,7 +104,7 @@ export function App() {
             </nav>
           </header>
           <main className="flex min-h-0 flex-1 flex-col">
-            <Page path={path} />
+            <Page path={busy ? '/' : path} />
           </main>
           <footer className="text-muted-foreground text-center text-xs">
             Free, no sign-up, no watermark. Recordings and screenshots stay on your computer unless you upload them.
