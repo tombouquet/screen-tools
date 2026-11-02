@@ -9,6 +9,7 @@ import {
   deleteRecording,
   getRecordingBlob,
   pruneRecordings,
+  recordingLockName,
   replaceRecordingBlob,
   updateRecording,
 } from './db';
@@ -47,6 +48,8 @@ export class RecordingSession {
   private pausedMs = 0;
   private finished?: Promise<FinishedRecording>;
   private released = false;
+  /** Lets go of the lock that marks this recording as live to other windows. */
+  private unlock?: () => void;
 
   private constructor(
     preview: MediaStream,
@@ -166,6 +169,12 @@ export class RecordingSession {
       return;
     }
     this.recordingId = id;
+    // Other windows list this recording too; the lock tells them it's still being recorded.
+    if ('locks' in navigator) {
+      // Made up front, so a stop before the lock is granted still lets go of it.
+      const stopped = new Promise<void>((resolve) => (this.unlock = resolve));
+      void navigator.locks.request(recordingLockName(id), () => stopped);
+    }
     this.recorder.ondataavailable = (event) => {
       if (!event.data.size) return;
       this.writes = this.writes.then(() => addChunk(id, event.data)).catch(console.error);
@@ -237,7 +246,7 @@ export class RecordingSession {
       }
       await updateRecording(id, { durationMs, seekable: optimize || !isWebm(this.mimeType) });
       return { id, blob, mimeType: this.mimeType, durationMs };
-    });
+    }).finally(() => this.unlock?.());
     return this.finished;
   }
 }

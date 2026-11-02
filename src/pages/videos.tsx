@@ -15,6 +15,7 @@ import {
   getRecording,
   getRecordingBlob,
   listRecordings,
+  liveRecordingIds,
   replaceRecordingBlob,
   updateRecording,
   type Recording,
@@ -41,9 +42,11 @@ const defaultFileName = (recording: Recording) =>
 
 function VideoList() {
   const [recordings, setRecordings] = useState<Recording[]>();
+  const [live, setLive] = useState<Set<number>>(new Set());
   const thumbnails = useThumbnails(recordings);
   useEffect(() => {
     void listRecordings().then(setRecordings);
+    void liveRecordingIds().then(setLive);
   }, []);
 
   return (
@@ -94,8 +97,14 @@ function VideoList() {
                     {fileExtension(recording.mimeType).toUpperCase()}
                   </span>
                 </span>
-                {recording.durationMs === undefined && <Badge variant="outline">Interrupted</Badge>}
-                {recording.saved ? <Badge variant="secondary">Saved</Badge> : <Badge variant="outline">Not saved</Badge>}
+                {live.has(recording.id) ? (
+                  <Badge variant="destructive">Recording</Badge>
+                ) : (
+                  <>
+                    {recording.durationMs === undefined && <Badge variant="outline">Interrupted</Badge>}
+                    {recording.saved ? <Badge variant="secondary">Saved</Badge> : <Badge variant="outline">Not saved</Badge>}
+                  </>
+                )}
               </button>
             </li>
           ))}
@@ -110,9 +119,12 @@ function VideoDetail({ id }: { id: number }) {
   const [blob, setBlob] = useState<Blob>();
   // The row is there but has no video, e.g. the window closed before the first chunk was written.
   const [empty, setEmpty] = useState(false);
+  // Still being recorded in another window: deleting or rewriting it now would lose it.
+  const [live, setLive] = useState(false);
 
   const load = useCallback(async () => {
-    const [row, data] = await Promise.all([getRecording(id), getRecordingBlob(id)]);
+    const [row, data, liveIds] = await Promise.all([getRecording(id), getRecordingBlob(id), liveRecordingIds()]);
+    setLive(liveIds.has(id));
     setRecording(row && data ? row : null);
     setEmpty(!!row && !data);
     setBlob(data);
@@ -120,6 +132,20 @@ function VideoDetail({ id }: { id: number }) {
   useEffect(() => {
     void load();
   }, [load]);
+
+  if (live) {
+    return (
+      <Card className="mx-auto my-auto w-full max-w-xl">
+        <CardHeader>
+          <CardTitle>Still recording</CardTitle>
+          <CardDescription>This video is being recorded in another window. Stop it there to play, save or delete it.</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <BackButton />
+        </CardContent>
+      </Card>
+    );
+  }
 
   if (recording === null) {
     return (
