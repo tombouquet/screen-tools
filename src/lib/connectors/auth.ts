@@ -9,6 +9,7 @@ import { getConnector } from './registry';
 import { getConnection, listConnections, removeConnection, saveConnection } from './connections';
 import {
   ReconnectNeeded,
+  UploadError,
   type Account,
   type AuthorizedFetch,
   type Connection,
@@ -117,11 +118,20 @@ interface TokenResponse {
 
 async function postToken(auth: OAuthConfig, body: Record<string, string>): Promise<TokenResponse> {
   if (!auth.tokenUrl) throw new Error('This connector has no token URL.');
-  const response = await fetch(auth.tokenUrl, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-    body: new URLSearchParams(body),
-  });
+  let response: Response;
+  try {
+    response = await fetch(auth.tokenUrl, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: new URLSearchParams(body),
+    });
+  } catch {
+    throw new UploadError("Couldn't reach the sign-in server. Check your connection.", true);
+  }
+  // The service being down or busy isn't a reason to sign in again.
+  if (response.status >= 500 || response.status === 429) {
+    throw new UploadError('The sign-in server is busy. Try again soon.', true, response.status);
+  }
   const json = (await response.json().catch(() => ({}))) as TokenResponse;
   if (!response.ok || !json.access_token) {
     throw new Error(`Sign-in failed: ${json.error_description ?? json.error ?? `HTTP ${response.status}`}`);
@@ -212,6 +222,9 @@ function renew(id: ConnectorId, stale: string): Promise<TokenSet> {
         tokens = await renewTokens(connection);
       } catch (error) {
         console.warn(`Couldn't renew the ${id} connection`, error);
+        // A dropped connection or a busy server is retried; only a refusal needs signing in again.
+        if (error instanceof UploadError && error.retryable) throw error;
+        if (!navigator.onLine) throw new UploadError("Couldn't reach the sign-in server. Check your connection.", true);
         throw new ReconnectNeeded(id);
       }
       await saveConnection({ ...connection, tokens });
