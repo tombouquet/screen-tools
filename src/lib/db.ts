@@ -18,6 +18,10 @@ export interface RecordingRow {
   saved?: boolean;
   /** WebM gets a duration header written so players can seek it. MP4 is always seekable. */
   seekable?: boolean;
+  /** The file name the user gave it when saving, without the extension. */
+  name?: string;
+  /** A small JPEG of an early frame, for the list. Made the first time the list shows it. */
+  thumbnail?: Blob;
 }
 
 export interface Recording extends RecordingRow {
