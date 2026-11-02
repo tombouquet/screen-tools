@@ -1,4 +1,4 @@
-import { FileVideo, Gauge, Save, Upload, X } from 'lucide-react';
+import { FileVideo, Gauge, Save, Scissors, Upload, X } from 'lucide-react';
 import { useRef, useState } from 'react';
 import { toast } from 'sonner';
 import { RecordedVideo } from '@/components/recorded-video';
@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { formatBytes, isWebm } from '@/lib/formats';
 import { LARGE_FILE_BYTES } from '@/lib/compress';
+import { openFileInEditor } from '@/lib/edit/handoff';
 import { makeSeekable } from '@/lib/optimize';
 import { cn } from '@/lib/utils';
 
@@ -112,6 +113,9 @@ function FileView({ file, onChange, onClose }: { file: File; onChange: (file: Fi
                 <Gauge /> {optimizing ? 'Optimizing…' : 'Make seekable'}
               </Button>
             )}
+            <Button variant="outline" onClick={() => openFileInEditor(file)}>
+              <Scissors /> Edit
+            </Button>
             <Button onClick={() => void saveVideo(file, file.type, file.name)}>
               <Save /> Save video
             </Button>

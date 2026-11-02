@@ -8,6 +8,7 @@ import { navigate, useRoute } from '@/hooks/use-route';
 import { cn } from '@/lib/utils';
 import { currentVersion } from '@/lib/version';
 import { ChangelogPage } from '@/pages/changelog';
+import { EditorPage } from '@/pages/editor';
 import { HomePage } from '@/pages/home';
 import { PlayerPage } from '@/pages/player';
 import { RecorderPage } from '@/pages/recorder';
@@ -28,6 +29,8 @@ function Page({ path }: { path: string }) {
   if (video) return <VideosPage id={video[1] ? Number(video[1]) : undefined} />;
   const screenshot = path.match(/^\/screenshots(?:\/(\d+))?$/);
   if (screenshot) return <ScreenshotsPage id={screenshot[1] ? Number(screenshot[1]) : undefined} />;
+  const editor = path.match(/^\/editor(?:\/(\d+))?$/);
+  if (editor) return <EditorPage key={path} recordingId={editor[1] ? Number(editor[1]) : undefined} />;
   const settings = path.match(/^\/settings(?:\/([\w-]+))?$/);
   if (settings) return <SettingsPage section={settings[1]} />;
   switch (path) {
@@ -49,6 +52,8 @@ export function App() {
   const section = '/' + (path.split('/')[1] ?? '');
   // The screenshot editor fills the tab exactly; it never scrolls the page.
   const wide = /^\/screenshots\/\d+$/.test(path);
+  // The video editor's timeline gets more room.
+  const roomy = path.startsWith('/editor');
 
   // Mid-recording, the header links or the browser's Back could change the route and
   // unmount the recorder, which would end the recording. Keep it on screen and put the
@@ -60,7 +65,7 @@ export function App() {
   return (
     <ThemeProvider>
       <TooltipProvider>
-        <div className={cn('mx-auto flex flex-col gap-4 p-4', wide ? 'h-screen max-w-none' : 'min-h-screen max-w-4xl')}>
+        <div className={cn('mx-auto flex flex-col gap-4 p-4', wide ? 'h-screen max-w-none' : roomy ? 'min-h-screen max-w-6xl' : 'min-h-screen max-w-4xl')}>
           <header className="flex items-center gap-3">
             <a
               href="#/home"

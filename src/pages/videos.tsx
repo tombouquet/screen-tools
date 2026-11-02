@@ -1,4 +1,4 @@
-import { ArrowLeft, Film, Gauge, Save, Trash2 } from 'lucide-react';
+import { ArrowLeft, Film, Gauge, Save, Scissors, Trash2 } from 'lucide-react';
 import { useCallback, useEffect, useState } from 'react';
 import { toast } from 'sonner';
 import { ConfirmDeleteDialog } from '@/components/confirm-dialog';
@@ -250,6 +250,9 @@ function RecordingView({
             )}
             <Button variant="destructive" onClick={() => setConfirmOpen(true)}>
               <Trash2 /> Delete
+            </Button>
+            <Button variant="outline" onClick={() => navigate(`/editor/${id}`)}>
+              <Scissors /> Edit
             </Button>
             <Button onClick={() => void save()}>
               <Save /> Save video
