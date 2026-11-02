@@ -1,9 +1,9 @@
 // Upload servers: any server that hands out an upload URL and a public link for a file.
 // The extension asks the server's endpoint for both, then sends the file straight to the
 // upload URL. The format is in docs/guides/upload-servers.md; keep the two in step.
-import { Server } from 'lucide-react';
 import { browser } from 'wxt/browser';
-import { saveConnection } from './connections';
+import { getConnection, listConnections, saveConnection } from './connections';
+import { isServerIcon, serverIcon } from './server-icons';
 import { UploadError, type Connection, type Connector, type UploadContext, type UploadJob, type UploadServerSettings } from './types';
 
 /** What the endpoint answers with. */
@@ -40,7 +40,7 @@ export function uploadServerConnector(id: Connector['id'], settings: UploadServe
     id,
     name: settings.name,
     description: `Uploads to ${host}. Every upload gets a link anyone can open.`,
-    icon: Server,
+    icon: serverIcon(settings.icon),
     accepts: ['video', 'image'],
     hosts: endpoint ? [hostPattern(endpoint)] : [],
     auth: null,
@@ -144,10 +144,11 @@ async function upload(settings: UploadServerSettings, job: UploadJob, ctx: Uploa
 
 /**
  * Checks the settings, asks for the host permission, makes sure the endpoint answers and
- * saves the server. Call it straight from a click: the permission prompt needs the
- * gesture, so nothing is awaited before it. Resolves undefined if the user says no.
+ * saves the server: a new one, or `id`'s when editing. Call it straight from a click: the
+ * permission prompt needs the gesture, so nothing is awaited before it. Resolves undefined
+ * if the user says no.
  */
-export async function addUploadServer(input: UploadServerSettings): Promise<Connection | undefined> {
+export async function saveUploadServer(input: UploadServerSettings, id?: Connector['id']): Promise<Connection | undefined> {
   const name = input.name.trim();
   const endpoint = parseUrl(input.endpoint);
   if (!name) throw new InvalidServerSettings('Give the server a name.');
@@ -163,15 +164,39 @@ export async function addUploadServer(input: UploadServerSettings): Promise<Conn
     throw new InvalidServerSettings(`Couldn't reach ${endpoint.host}. Check the URL and that you're on the right network.`);
   }
 
+  const previous = id ? await getConnection(id) : undefined;
   const token = input.token?.trim();
   const connection: Connection = {
-    connector: `server:${crypto.randomUUID()}`,
+    connector: previous?.connector ?? `server:${crypto.randomUUID()}`,
     account: { id: endpoint.host, name },
     // Upload servers have no sign-in to renew.
     tokens: { accessToken: '', expiresAt: Number.MAX_SAFE_INTEGER },
-    connectedAt: new Date().toISOString(),
-    server: { name, endpoint: endpoint.href, ...(token ? { token } : {}) },
+    // Kept when editing, so the server stays in its place in the list.
+    connectedAt: previous?.connectedAt ?? new Date().toISOString(),
+    server: {
+      name,
+      endpoint: endpoint.href,
+      ...(token ? { token } : {}),
+      ...(isServerIcon(input.icon) ? { icon: input.icon } : {}),
+    },
   };
   await saveConnection(connection);
+  if (previous?.server) await releaseOldHost(previous.server.endpoint, endpoint);
   return connection;
+}
+
+/** After an edit moves a server to another host, gives up the old host unless something else still uses it. */
+async function releaseOldHost(oldEndpoint: string, newEndpoint: URL): Promise<void> {
+  const old = parseUrl(oldEndpoint);
+  if (!old || hostPattern(old) === hostPattern(newEndpoint)) return;
+  // Imported here: the registry imports this file, so a top-level import would be circular.
+  const { getConnector } = await import('./registry');
+  const others = await listConnections();
+  const stillNeeded = others.some((c) =>
+    c.server ? hostPattern(parseUrl(c.server.endpoint) ?? newEndpoint) === hostPattern(old) : getConnector(c.connector).hosts.includes(hostPattern(old)),
+  );
+  if (stillNeeded) return;
+  await browser.permissions
+    .remove({ origins: [hostPattern(old)] })
+    .catch((error: unknown) => console.warn("Couldn't remove permissions", error));
 }

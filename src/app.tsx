@@ -27,11 +27,11 @@ function Page({ path }: { path: string }) {
   if (video) return <VideosPage id={video[1] ? Number(video[1]) : undefined} />;
   const screenshot = path.match(/^\/screenshots(?:\/(\d+))?$/);
   if (screenshot) return <ScreenshotsPage id={screenshot[1] ? Number(screenshot[1]) : undefined} />;
+  const settings = path.match(/^\/settings(?:\/([\w-]+))?$/);
+  if (settings) return <SettingsPage section={settings[1]} />;
   switch (path) {
     case '/player':
       return <PlayerPage />;
-    case '/settings':
-      return <SettingsPage />;
     case '/changelog':
       return <ChangelogPage />;
     case '/home':

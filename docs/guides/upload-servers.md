@@ -2,7 +2,7 @@
 
 Screen Tools can upload recordings and screenshots to your own server, as long as the server can hand out an upload URL and a public link for each file. This guide is for whoever runs that server: it's everything the server has to do.
 
-People add a server in **Settings → Connections → Add upload server**, with a name, the server's upload URL and, if the server wants one, an access token. After that it shows up as a destination in the save dialog and the screenshot upload dialog.
+People add a server in **Settings → Uploads → Add upload server**, with a name, an icon, the server's upload URL and, if the server wants one, an access token. **Edit** changes any of these later; **Remove** deletes the server from the extension (files already uploaded stay on the server). After that it shows up as a destination in the save dialog and the screenshot upload dialog.
 
 ## How an upload works
 

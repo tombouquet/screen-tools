@@ -71,6 +71,8 @@ export interface UploadServerSettings {
   endpoint: string;
   /** Sent as `Authorization: Bearer <token>` when set. */
   token?: string;
+  /** One of the ids in server-icons.ts; unset means the default server icon. */
+  icon?: string;
 }
 
 /**

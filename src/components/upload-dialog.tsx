@@ -1,7 +1,7 @@
 // Uploading a screenshot to a connected service: pick where, whether to make a share
 // link, then watch it go. Videos do this in the save dialog instead.
 import { useEffect, useRef, useState, useSyncExternalStore } from 'react';
-import { OptionSelect } from '@/components/option-select';
+import { DestinationList } from '@/components/destination-list';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
@@ -144,7 +144,13 @@ function UploadDialogContent({
         >
           <DialogHeader>
             <DialogTitle>Upload {kind === 'image' ? 'screenshot' : 'video'}</DialogTitle>
-            <DialogDescription>{destination?.description ?? 'Connect a service in Settings first.'}</DialogDescription>
+            <DialogDescription>
+              {!destination
+                ? 'Connect a service in Settings first.'
+                : destinations.length > 1
+                  ? 'Choose where it goes.'
+                  : destination.description}
+            </DialogDescription>
           </DialogHeader>
 
           {progress && destination ? (
@@ -154,12 +160,12 @@ function UploadDialogContent({
               <div className="grid gap-4">
                 {destinations.length > 1 && (
                   <div className="grid gap-2">
-                    <Label htmlFor="upload-destination">Upload to</Label>
-                    <OptionSelect
-                      id="upload-destination"
-                      items={destinations.map((d) => ({ value: d.id, label: d.name, icon: d.icon }))}
+                    <Label>Upload to</Label>
+                    <DestinationList
+                      label="Upload to"
+                      destinations={destinations}
                       value={destination.id}
-                      onValueChange={(id) => {
+                      onChange={(id) => {
                         setChosen(id);
                         updateSettings({ saveDestination: id });
                       }}
