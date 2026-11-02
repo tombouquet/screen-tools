@@ -48,6 +48,9 @@ export default defineConfig({
           // Firefox has no desktopCapture; the recorder uses getDisplayMedia instead.
           permissions: ['storage', 'notifications', 'activeTab', 'scripting'],
           ...uploadPermissions,
+          // Firefox only lets a page write to the clipboard without a click with this, so
+          // it's asked for when "Copy screenshots to the clipboard" is turned on.
+          optional_permissions: [...uploadPermissions.optional_permissions, 'clipboardWrite'],
           action: { default_title: name },
           // Firefox ignores options_page.
           options_ui: { page: optionsPage, open_in_tab: true },

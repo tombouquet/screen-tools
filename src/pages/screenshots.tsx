@@ -1,5 +1,5 @@
-import { ArrowLeft, CloudUpload, Copy, Download, Image as ImageIcon, Trash2, type LucideIcon } from 'lucide-react';
-import { useEffect, useState } from 'react';
+import { ArrowLeft, CloudUpload, Copy, Download, Image as ImageIcon, Link2, Trash2, type LucideIcon } from 'lucide-react';
+import { useEffect, useRef, useState } from 'react';
 import { toast } from 'sonner';
 import { ConfirmDeleteDialog } from '@/components/confirm-dialog';
 import { ScreenshotEditor } from '@/components/screenshot-editor';
@@ -8,7 +8,9 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { UploadDialog, useConnectedDestinations, type UploadFile } from '@/components/upload-dialog';
+import { useQuickShare } from '@/hooks/use-quick-share';
 import { navigate } from '@/hooks/use-route';
+import { copyImageNow } from '@/lib/clipboard';
 import { downloadBlob } from '@/lib/download';
 import { screenshotFileName } from '@/lib/formats';
 import { getSettings } from '@/lib/settings';
@@ -74,6 +76,7 @@ function ScreenshotList() {
   const [deleting, setDeleting] = useState<number>();
   const [uploading, setUploading] = useState<Screenshot>();
   const destinations = useConnectedDestinations('image');
+  const quickShare = useQuickShare();
 
   useEffect(() => {
     void listScreenshots().then(setScreenshots);
@@ -93,7 +96,7 @@ function ScreenshotList() {
       <CardHeader>
         <CardTitle>Screenshots</CardTitle>
         <CardDescription>
-          Your latest {MAX_SCREENSHOTS} screenshots. Take one from the toolbar icon; open one to edit, download or copy it.
+          Your latest {MAX_SCREENSHOTS} screenshots. Take one from the toolbar icon; open one to edit, download, copy or share it.
         </CardDescription>
       </CardHeader>
       <CardContent>
@@ -119,6 +122,12 @@ function ScreenshotList() {
                   label={`Download ${getSettings().imageFormat.toUpperCase()}`}
                   icon={Download}
                   onClick={() => void downloadScreenshot(screenshot).then(() => markSaved(screenshot.id))}
+                />
+                <QuickAction
+                  label="Upload and copy link"
+                  icon={Link2}
+                  disabled={!quickShare.ready || quickShare.isSharing(screenshot.id)}
+                  onClick={() => quickShare.share(screenshot.id, () => screenshotFile(screenshot), () => void markSaved(screenshot.id))}
                 />
                 {destinations.length > 0 && (
                   <QuickAction label="Upload" icon={CloudUpload} onClick={() => setUploading(screenshot)} />
@@ -152,11 +161,13 @@ function QuickAction({
   label,
   icon: Icon,
   destructive,
+  disabled,
   onClick,
 }: {
   label: string;
   icon: LucideIcon;
   destructive?: boolean;
+  disabled?: boolean;
   onClick: () => void;
 }) {
   return (
@@ -167,6 +178,7 @@ function QuickAction({
             variant="secondary"
             size="icon-sm"
             aria-label={label}
+            disabled={disabled}
             onClick={onClick}
             className={destructive ? 'text-destructive hover:text-destructive shadow-sm' : 'shadow-sm'}
           />
@@ -199,11 +211,44 @@ function Thumbnail({ screenshot }: { screenshot: Screenshot }) {
   );
 }
 
+/**
+ * True when the route says this screenshot was just taken (`?new`). The flag is taken
+ * off the address straight away, so a reload or Back doesn't count it as new again.
+ */
+function useJustCaptured(id: number): boolean {
+  const [fresh] = useState(() => /\?(.*&)?new(&|=|$)/.test(window.location.hash));
+  useEffect(() => {
+    if (fresh) history.replaceState(history.state, '', `#/screenshots/${id}`);
+  }, [fresh, id]);
+  return fresh;
+}
+
+/** Copies a fresh screenshot to the clipboard when "Copy screenshots to the clipboard" is on. */
+function useAutoCopy(screenshot: Screenshot | null | undefined, fresh: boolean): void {
+  const done = useRef(false);
+  useEffect(() => {
+    if (!fresh || !screenshot || done.current || !getSettings().copyScreenshots) return;
+    done.current = true;
+    const png = screenshot.blob;
+    void copyImageNow(png).then((copied) => {
+      if (copied) toast.success('Copied to clipboard', { description: 'Paste it anywhere, or edit it here first.' });
+      else
+        toast.info("Couldn't copy it straight away", {
+          description: 'The browser only allows it with a click.',
+          duration: 15_000,
+          action: { label: 'Copy', onClick: () => void copyScreenshot(screenshot) },
+        });
+    });
+  }, [screenshot, fresh]);
+}
+
 function ScreenshotDetail({ id }: { id: number }) {
   const [screenshot, setScreenshot] = useState<Screenshot | null>();
   // Bumped on revert so the editor starts over on the original.
   const [revision, setRevision] = useState(0);
   const [confirmOpen, setConfirmOpen] = useState(false);
+  const fresh = useJustCaptured(id);
+  useAutoCopy(screenshot, fresh);
 
   useEffect(() => {
     void getScreenshot(id).then((row) => setScreenshot(row ?? null));

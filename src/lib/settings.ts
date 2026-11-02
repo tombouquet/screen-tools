@@ -75,6 +75,8 @@ export interface Settings {
   /** The screenshot download format picked last time. */
   imageFormat: ImageFormat;
   screenshotQuality: ScreenshotQualityId;
+  /** Put each new screenshot on the clipboard as soon as it's taken. */
+  copyScreenshots: boolean;
   /** Where the save dialog sent the last video. See `destinationFor` for when it's no longer connected. */
   saveDestination: ConnectorId;
   /** Ask for a public link when uploading. */
@@ -101,6 +103,7 @@ export const DEFAULT_SETTINGS: Settings = {
   saveSize: 'original',
   imageFormat: 'png',
   screenshotQuality: 'native',
+  copyScreenshots: false,
   saveDestination: 'local',
   shareLink: true,
   theme: 'system',
@@ -137,6 +140,7 @@ function sanitize(raw: Partial<Record<keyof Settings | 'askFileName', unknown>>)
     saveSize: oneOf(raw.saveSize, SAVE_SIZES, d.saveSize),
     imageFormat: oneOf(raw.imageFormat, ['png', 'jpg'], d.imageFormat),
     screenshotQuality: oneOf(raw.screenshotQuality, SCREENSHOT_QUALITIES.map((q) => q.id), d.screenshotQuality),
+    copyScreenshots: typeof raw.copyScreenshots === 'boolean' ? raw.copyScreenshots : d.copyScreenshots,
     // Upload servers have ids made when they're added, so any `server:` id is kept.
     saveDestination:
       typeof raw.saveDestination === 'string' && raw.saveDestination.startsWith('server:')

@@ -46,6 +46,7 @@ export const chromePlatform: Platform = {
     systemAudio: true,
     tabCapture: true,
     screenPickerNeedsGesture: false,
+    clipboardNeedsPermission: false,
   },
   screen: { captureScreen },
   copy: {

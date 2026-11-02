@@ -6,6 +6,7 @@ import {
   Download,
   Grid3x3,
   Highlighter,
+  Link2,
   MoveUpRight,
   Pencil,
   Redo2,
@@ -25,6 +26,7 @@ import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip
 import { UploadDialog, useConnectedDestinations } from '@/components/upload-dialog';
 import { UploadList } from '@/components/upload-list';
 import { useBeforeUnload } from '@/hooks/use-before-unload';
+import { useQuickShare } from '@/hooks/use-quick-share';
 import { useSettings } from '@/hooks/use-settings';
 import {
   COLORS,
@@ -115,6 +117,7 @@ export function ScreenshotEditor({
   const [busy, setBusy] = useState(false);
   const [uploadOpen, setUploadOpen] = useState(false);
   const destinations = useConnectedDestinations('image');
+  const quickShare = useQuickShare();
   const stageRef = useRef<HTMLDivElement>(null);
   const [stage, setStage] = useState<{ width: number; height: number }>();
 
@@ -313,6 +316,13 @@ export function ScreenshotEditor({
     }
   };
 
+  /** The edited image in the download format, for uploading. */
+  const getUploadFile = async () => {
+    const format = settings.imageFormat;
+    const blob = await flatten(image!, doc, mimeOf(format));
+    return { blob, fileName: screenshotFileName(new Date(screenshot.date), format), mimeType: mimeOf(format) };
+  };
+
   const scale = cssScale();
   const displayWidth = view && stage ? fitWidth(view, stage) : undefined;
 
@@ -388,6 +398,27 @@ export function ScreenshotEditor({
           <Button variant="outline" disabled={!image || busy} onClick={() => void copy()}>
             <Copy /> Copy
           </Button>
+          <Tooltip>
+            <TooltipTrigger
+              render={
+                <Button
+                  variant="outline"
+                  disabled={!image || busy || !quickShare.ready || quickShare.isSharing(screenshot.id)}
+                  onClick={() =>
+                    // Once the editor is gone (its image closed), just mark it saved.
+                    quickShare.share(screenshot.id, getUploadFile, () =>
+                      void persist().catch(() => updateScreenshot(screenshot.id, { saved: true })),
+                    )
+                  }
+                />
+              }
+            >
+              <Link2 /> Share link
+            </TooltipTrigger>
+            <TooltipContent>
+              {quickShare.destination ? `Upload to ${quickShare.destination.name} and copy the link` : 'Upload and copy link'}
+            </TooltipContent>
+          </Tooltip>
           {destinations.length > 0 && (
             <Button variant="outline" disabled={!image || busy} onClick={() => setUploadOpen(true)}>
               <CloudUpload /> Upload
@@ -401,11 +432,7 @@ export function ScreenshotEditor({
             onOpenChange={setUploadOpen}
             kind="image"
             source={{ kind: 'screenshot', id: screenshot.id }}
-            getFile={async () => {
-              const format = settings.imageFormat;
-              const blob = await flatten(image!, doc, mimeOf(format));
-              return { blob, fileName: screenshotFileName(new Date(screenshot.date), format), mimeType: mimeOf(format) };
-            }}
+            getFile={getUploadFile}
             onUploaded={() => void persist()}
           />
         </div>
