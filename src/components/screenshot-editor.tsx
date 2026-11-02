@@ -135,6 +135,29 @@ export function ScreenshotEditor({
   const dirty = history.index > 0 && doc !== exported;
   useBeforeUnload(dirty);
 
+  // Leaving within the app (Back, the nav, another screenshot) doesn't fire beforeunload,
+  // so unsaved edits are stored on the way out. The original stays, so they can be reverted.
+  // Declared before the effect that closes the image, so it draws before the close.
+  const unsaved = useRef({ image, doc, dirty });
+  unsaved.current = { image, doc, dirty };
+  /** Set when reverting, so the edits being thrown away aren't stored. */
+  const discarding = useRef(false);
+  useEffect(
+    () => () => {
+      const { image: loaded, doc: current, dirty: hasEdits } = unsaved.current;
+      if (!hasEdits || discarding.current || !loaded) return;
+      try {
+        const { width, height } = viewRect(loaded, current);
+        void flatten(loaded, current, 'image/png')
+          .then((png) => updateScreenshot(screenshot.id, { blob: png, width: Math.round(width), height: Math.round(height), edited: true }))
+          .catch((error: unknown) => console.error("Couldn't keep the edits", error));
+      } catch (error) {
+        console.error("Couldn't keep the edits", error);
+      }
+    },
+    [screenshot.id],
+  );
+
   useEffect(() => {
     let cancelled = false;
     let bitmap: ImageBitmap | undefined;
@@ -345,7 +368,13 @@ export function ScreenshotEditor({
           <Redo2 />
         </IconButton>
         {screenshot.edited && (
-          <IconButton label="Revert to original" onClick={onRevert}>
+          <IconButton
+            label="Revert to original"
+            onClick={() => {
+              discarding.current = true;
+              onRevert();
+            }}
+          >
             <RotateCcw />
           </IconButton>
         )}
