@@ -1,4 +1,4 @@
-import { Camera, Circle, Mic, Monitor, Pause, Play, Plus, Save, Square, Trash2, Volume2, VolumeX } from 'lucide-react';
+import { Camera, Circle, Mic, Monitor, Pause, Play, Plus, Save, Settings2, Square, Trash2, Volume2, VolumeX } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import { toast } from 'sonner';
 import { browser, type Browser } from 'wxt/browser';
@@ -12,7 +12,6 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
-import { OptionSelect } from '@/components/option-select';
 import { useBeforeUnload } from '@/hooks/use-before-unload';
 import { setBusy } from '@/hooks/use-busy';
 import { navigate, useRoute } from '@/hooks/use-route';
@@ -21,25 +20,15 @@ import { CaptureError } from '@/lib/capture';
 import { LARGE_FILE_BYTES } from '@/lib/compress';
 import { deleteRecording, updateRecording } from '@/lib/db';
 import { openAppTab } from '@/lib/download';
-import { fileExtension, formatBytes, formatDuration, formatOptions, recordingFileName } from '@/lib/formats';
+import { fileExtension, formatBytes, formatDuration, recordingFileName } from '@/lib/formats';
 import type { AppMessage } from '@/lib/messages';
 import { RecordingSession, type FinishedRecording } from '@/lib/session';
-import {
-  SCREEN_RESOLUTIONS,
-  getSettings,
-  setCaptureSource,
-  updateSettings,
-  type AudioSource,
-  type CaptureSource,
-  type ScreenResolutionId,
-} from '@/lib/settings';
+import { getSettings, setCaptureSource, updateSettings, type AudioSource, type CaptureSource } from '@/lib/settings';
 import { resetToolbar, showCountdown, showRecording } from '@/lib/toolbar';
 import { platform } from '@/platform';
 
 /** Seconds between picking what to share and the recording starting. */
 const COUNTDOWN_SECONDS = 3;
-
-const SCREEN_RESOLUTION_OPTIONS = SCREEN_RESOLUTIONS.map((r) => ({ value: r.id as ScreenResolutionId, label: r.label }));
 
 /** What the screen picker offers besides the whole screen. */
 const SCREEN_SOURCES = platform.capabilities.tabCapture ? 'your whole screen, a window or a tab' : 'your whole screen or a window';
@@ -265,33 +254,21 @@ export function RecorderPage() {
         />
       </Field>
 
-      <div className="grid grid-cols-2 gap-3">
-        <Field label="Format" htmlFor="format">
-          <OptionSelect
-            id="format"
-            items={formatOptions()}
-            value={settings.format}
-            onValueChange={(format) => updateSettings({ format })}
-          />
-        </Field>
-        <Field label="Resolution" htmlFor="screen-resolution">
-          {wantsScreen ? (
-            <OptionSelect
-              id="screen-resolution"
-              items={SCREEN_RESOLUTION_OPTIONS}
-              value={settings.screenResolution}
-              onValueChange={(screenResolution) => updateSettings({ screenResolution })}
-            />
-          ) : (
-            <p className="text-muted-foreground flex h-8 items-center text-sm">Set by the camera in Settings</p>
-          )}
-        </Field>
-      </div>
-
       <Button size="lg" className="h-11 w-full text-base" onClick={() => void start()} disabled={phase.kind === 'starting'}>
         <Circle className="fill-record text-record" />
         {phase.kind === 'starting' ? 'Starting…' : 'Start recording'}
       </Button>
+
+      <div className="flex justify-center">
+        <Button
+          variant="link"
+          size="sm"
+          className="text-muted-foreground hover:text-foreground"
+          onClick={() => navigate('/settings/recording')}
+        >
+          <Settings2 /> Format, resolution and camera in Settings
+        </Button>
+      </div>
     </div>
   );
 }
@@ -299,20 +276,16 @@ export function RecorderPage() {
 /** A small uppercase label over a control, with an optional note under it. */
 function Field({
   label,
-  htmlFor,
   hint,
   children,
 }: {
   label: string;
-  htmlFor?: string;
   hint?: string;
   children: React.ReactNode;
 }) {
   return (
     <div className="space-y-2">
-      <Label htmlFor={htmlFor} className="text-muted-foreground text-xs tracking-wide uppercase">
-        {label}
-      </Label>
+      <Label className="text-muted-foreground text-xs tracking-wide uppercase">{label}</Label>
       {children}
       {hint && <p className="text-muted-foreground text-xs">{hint}</p>}
     </div>
