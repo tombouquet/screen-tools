@@ -75,7 +75,16 @@ export class RecordingSession {
       const mixer = settings.audioSource === 'none' ? undefined : new AudioMixer();
       if (mixer) cleanup.push(() => mixer.close());
 
-      // Optional extras first, so their permission prompts come before the screen picker.
+      const captureScreen = async () => {
+        const capture = await platform.screen.captureScreen(wantsSystem, settings.frameRate, screenResolution(settings.screenResolution));
+        stopStream(capture.stream);
+        return capture;
+      };
+      // Where the picker only opens from a click, the click's activation runs out after a few
+      // seconds, so a mic or camera prompt first could make it fail. Open the picker straight away.
+      const earlyScreen = wantsScreen && platform.capabilities.screenPickerNeedsGesture ? await captureScreen() : undefined;
+
+      // Otherwise optional extras first, so their permission prompts come before the screen picker.
       if (wantsMic) {
         try {
           const mic = await captureMicrophone(settings.microphoneId);
@@ -103,9 +112,8 @@ export class RecordingSession {
       let compositor: Compositor;
       let screenStream: MediaStream | undefined;
       if (wantsScreen) {
-        const screenCapture = await platform.screen.captureScreen(wantsSystem, settings.frameRate, screenResolution(settings.screenResolution));
+        const screenCapture = earlyScreen ?? (await captureScreen());
         screenStream = screenCapture.stream;
-        stopStream(screenStream);
         if (wantsSystem && !screenCapture.hasAudio) {
           callbacks.onWarning(new CaptureError('system-audio', 'The source you picked has no audio to share'));
         }
