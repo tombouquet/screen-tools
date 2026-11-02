@@ -1,5 +1,26 @@
 # Changelog
 
+## [1.7.0](https://github.com/tombouquet/screen-tools/compare/v1.6.0...v1.7.0) (2026-11-02)
+
+
+### Features
+
+* redesign Settings with sections, a setup checklist and a live camera preview ([#27](https://github.com/tombouquet/screen-tools/issues/27)) ([8fc28a1](https://github.com/tombouquet/screen-tools/commit/8fc28a198b4656d4b6e8c79b3a4ab84d84e6818f))
+* stop screenshots from the toolbar icon ([#25](https://github.com/tombouquet/screen-tools/issues/25)) ([9a85c08](https://github.com/tombouquet/screen-tools/commit/9a85c0823ff864cad940ba79808b840d36c5549c))
+
+
+### Bug Fixes
+
+* carry on a failed upload from its saved session on Retry ([#32](https://github.com/tombouquet/screen-tools/issues/32)) ([b600381](https://github.com/tombouquet/screen-tools/commit/b600381d01bc1e215da5abaca5bc9d4119e9fe87))
+* don't keep hidden copies of Player uploads ([#36](https://github.com/tombouquet/screen-tools/issues/36)) ([01f7c64](https://github.com/tombouquet/screen-tools/commit/01f7c6477b78e6e908c81ab7f6c7dca9b4b919b4))
+* **firefox:** open the screen picker before the mic and camera ([#30](https://github.com/tombouquet/screen-tools/issues/30)) ([3c905f5](https://github.com/tombouquet/screen-tools/commit/3c905f5053e03919a756cda49862a8069c507084))
+* keep the recorder on screen while recording ([#28](https://github.com/tombouquet/screen-tools/issues/28)) ([f46bc45](https://github.com/tombouquet/screen-tools/commit/f46bc45e8f517a6c9d08843521335895c498e970))
+* keep unsaved screenshot edits when leaving the editor in the app ([#35](https://github.com/tombouquet/screen-tools/issues/35)) ([f31e3d4](https://github.com/tombouquet/screen-tools/commit/f31e3d43a9f5c146c216b72dd223817ae37c2fa9))
+* keep upload lists in step across app windows ([#33](https://github.com/tombouquet/screen-tools/issues/33)) ([9058515](https://github.com/tombouquet/screen-tools/commit/90585150680e1f362f1a554aa47de6757a66f3ad))
+* let empty recordings be deleted ([#29](https://github.com/tombouquet/screen-tools/issues/29)) ([b3d5e66](https://github.com/tombouquet/screen-tools/commit/b3d5e66e177440b2cf019fc38e5b115e1ffd7f66))
+* protect a recording in progress from other windows ([#34](https://github.com/tombouquet/screen-tools/issues/34)) ([753ee79](https://github.com/tombouquet/screen-tools/commit/753ee79daa6d29655f180f9ac7c86aaac23397e9))
+* retry uploads when a token renewal hits a network error ([#31](https://github.com/tombouquet/screen-tools/issues/31)) ([384f722](https://github.com/tombouquet/screen-tools/commit/384f722e0b8841bcf2b6d88e129a3c941a587649))
+
 ## [1.6.0](https://github.com/tombouquet/screen-tools/compare/v1.5.0...v1.6.0) (2026-11-02)
 
 
