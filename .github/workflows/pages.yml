@@ -1,0 +1,55 @@
+name: Pages
+
+# Publishes the README, privacy policy and docs as a GitHub Pages site. Google's OAuth
+# consent screen links to it for the app's homepage and privacy policy.
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - README.md
+      - PRIVACY.md
+      - docs/**
+      - .github/workflows/pages.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/configure-pages@v6
+      # Build from a copy so the site only holds the docs, not the source tree. The README
+      # becomes the homepage and PRIVACY.md is served at /privacy.
+      - name: Stage site
+        run: |
+          mkdir site
+          cp README.md site/index.md
+          cp PRIVACY.md site/privacy.md
+          cp -r docs site/docs
+          sed -i 's/(PRIVACY\.md)/(privacy.md)/g' site/index.md
+          printf 'title: Screen Tools\ndescription: Record your screen and take screenshots. Free, no watermark.\n' > site/_config.yml
+      - uses: actions/jekyll-build-pages@v1
+        with:
+          source: ./site
+          destination: ./_site
+      - uses: actions/upload-pages-artifact@v5
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v5

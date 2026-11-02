@@ -43,7 +43,7 @@ Uploads use the `drive.file` scope, which only gives access to files the extensi
    - **App name:** Screen Tools.
    - **User support email** and **developer contact:** your address.
    - **Audience:** External.
-   - **Branding:** app logo, home page and privacy policy link. Point the privacy policy at a published copy of [PRIVACY.md](../../PRIVACY.md). Google asks you to verify the domains of these links in Search Console, so host them on a domain you own.
+   - **Branding:** app logo, home page and privacy policy link. The Pages workflow publishes the README and [PRIVACY.md](../../PRIVACY.md), so use `https://tombouquet.github.io/screen-tools/` as the home page and `https://tombouquet.github.io/screen-tools/privacy` as the privacy policy, and add `tombouquet.github.io` under **Authorized domains**. Google asks you to verify that domain in Search Console. A URL-prefix property for `https://tombouquet.github.io/` needs its verification file at the site root, which is served from a separate `tombouquet.github.io` repository.
    - **Data access:** add the scope `https://www.googleapis.com/auth/drive.file`.
 4. Open **Clients → Create client**:
    - **Application type:** Web application. (The "Chrome extension" type only works with `chrome.identity.getAuthToken`, which is Chrome-only and can't pick an account.)
