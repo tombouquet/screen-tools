@@ -45,6 +45,7 @@ interface SaveRequest {
   /** Preselect the suggested compression preset (opened from the "too big" notice). */
   suggestCompression: boolean;
   recordingId?: number;
+  destination?: ConnectorId;
   /** The name it was saved as, without the extension, or undefined if cancelled. */
   resolve: (savedAs: string | undefined) => void;
 }
@@ -53,6 +54,8 @@ export interface SaveOptions {
   suggestCompression?: boolean;
   /** The stored recording being saved, so uploads of it are listed with it. */
   recordingId?: number;
+  /** Where to start the dialog on, instead of last time's choice, e.g. `local` for Download. */
+  destination?: ConnectorId;
 }
 
 /**
@@ -80,6 +83,7 @@ export function useSaveVideo() {
         fileName,
         suggestCompression: Boolean(options.suggestCompression),
         recordingId: options.recordingId,
+        destination: options.destination,
         resolve,
       }),
     );
@@ -117,7 +121,7 @@ function SaveDialog({ request, onDone }: { request: SaveRequest; onDone: (savedA
   const live = useSyncExternalStore(subscribeUploads, getLiveUploads);
 
   const destinations = useConnectedDestinations('video');
-  const [chosen, setChosen] = useState<ConnectorId>(getSettings().saveDestination);
+  const [chosen, setChosen] = useState<ConnectorId>(request.destination ?? getSettings().saveDestination);
   const [share, setShare] = useState(getSettings().shareLink);
   // Falls back to this computer when the remembered service isn't connected any more.
   const destination = destinationFor(chosen, destinations.map((d) => d.id));

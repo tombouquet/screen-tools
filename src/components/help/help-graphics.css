@@ -1,0 +1,308 @@
+/*
+ * Keyframes for the animated help scenes (help-graphics.tsx). Each scene loops over
+ * --hg-dur, and every element in it shares that loop, so percentages line up across
+ * elements. With reduced motion, each scene holds still on the frame at --hg-still.
+ */
+
+@media (prefers-reduced-motion: reduce) {
+  .hg * {
+    animation-play-state: paused !important;
+    animation-delay: calc(-1 * var(--hg-still)) !important;
+  }
+  .hg .hg-transient {
+    visibility: hidden;
+  }
+}
+
+/* Shared */
+@keyframes hg-click {
+  0% { opacity: 0.55; transform: translate(-50%, -50%) scale(0.3); }
+  5% { opacity: 0; transform: translate(-50%, -50%) scale(1.8); }
+  100% { opacity: 0; transform: translate(-50%, -50%) scale(1.8); }
+}
+@keyframes hg-tick {
+  0% { opacity: 0; transform: translateY(20%); }
+  2%, 7% { opacity: 1; transform: none; }
+  10%, 100% { opacity: 0; transform: none; }
+}
+@keyframes hg-blink {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.35; }
+}
+@keyframes hg-pulse {
+  0% { box-shadow: 0 0 0 0 color-mix(in oklab, var(--record) 55%, transparent); }
+  70%, 100% { box-shadow: 0 0 0 1.4cqw transparent; }
+}
+@keyframes hg-dash {
+  to { background-position: 2.4cqw 0; }
+}
+
+/* Pin the toolbar icon */
+@keyframes hg-pin-cursor {
+  0% { left: 45%; top: 72%; opacity: 0; }
+  6% { opacity: 1; }
+  16%, 22% { left: 83.5%; top: 14%; }
+  34%, 44% { left: 91%; top: 29%; }
+  58%, 94% { left: 76%; top: 16%; opacity: 1; }
+  100% { left: 76%; top: 16%; opacity: 0; }
+}
+@keyframes hg-pin-menu {
+  0%, 19% { opacity: 0; transform: translateY(-1cqw); }
+  22%, 50% { opacity: 1; transform: none; }
+  54%, 100% { opacity: 0; transform: none; }
+}
+@keyframes hg-pin-fill {
+  0%, 39% { opacity: 0; }
+  41%, 100% { opacity: 1; }
+}
+@keyframes hg-pin-icon {
+  0%, 41% { opacity: 0; transform: translate(-50%, -50%) scale(0.3); }
+  46% { opacity: 1; transform: translate(-50%, -50%) scale(1.15); }
+  49%, 94% { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+  100% { opacity: 0; transform: translate(-50%, -50%) scale(1); }
+}
+@keyframes hg-pin-tip {
+  0%, 60% { opacity: 0; transform: translate(-50%, -0.5cqw); }
+  64%, 92% { opacity: 1; transform: translate(-50%, 0); }
+  96%, 100% { opacity: 0; transform: translate(-50%, 0); }
+}
+
+/* Record */
+@keyframes hg-rec-cursor {
+  0% { left: 40%; top: 75%; opacity: 0; }
+  5% { opacity: 1; }
+  14%, 18% { left: 76%; top: 15%; }
+  27%, 33% { left: 68%; top: 29.4%; }
+  42%, 94% { left: 52%; top: 90%; opacity: 1; }
+  100% { left: 52%; top: 90%; opacity: 0; }
+}
+@keyframes hg-rec-popup {
+  0%, 16% { opacity: 0; transform: scale(0.95); }
+  19%, 31% { opacity: 1; transform: none; }
+  34%, 100% { opacity: 0; transform: none; }
+}
+@keyframes hg-rec-hover {
+  0%, 25% { opacity: 0; }
+  27%, 31% { opacity: 1; }
+  33%, 100% { opacity: 0; }
+}
+@keyframes hg-rec-dim {
+  0%, 35% { opacity: 0; }
+  37%, 66% { opacity: 1; }
+  69%, 100% { opacity: 0; }
+}
+@keyframes hg-rec-3 {
+  0%, 36% { opacity: 0; transform: scale(0.6); }
+  38% { opacity: 1; transform: scale(1); }
+  45% { opacity: 1; transform: scale(1.05); }
+  47%, 100% { opacity: 0; transform: scale(1.3); }
+}
+@keyframes hg-rec-2 {
+  0%, 46% { opacity: 0; transform: scale(0.6); }
+  48% { opacity: 1; transform: scale(1); }
+  55% { opacity: 1; transform: scale(1.05); }
+  57%, 100% { opacity: 0; transform: scale(1.3); }
+}
+@keyframes hg-rec-1 {
+  0%, 56% { opacity: 0; transform: scale(0.6); }
+  58% { opacity: 1; transform: scale(1); }
+  65% { opacity: 1; transform: scale(1.05); }
+  67%, 100% { opacity: 0; transform: scale(1.3); }
+}
+@keyframes hg-rec-on {
+  0%, 67% { opacity: 0; }
+  70%, 97% { opacity: 1; }
+  100% { opacity: 0; }
+}
+
+/* Stop and save */
+@keyframes hg-stop-cursor {
+  0% { left: 40%; top: 70%; opacity: 0; }
+  5% { opacity: 1; }
+  14%, 19% { left: 76%; top: 15%; }
+  45%, 94% { left: 75%; top: 83%; opacity: 1; }
+  100% { left: 75%; top: 83%; opacity: 0; }
+}
+@keyframes hg-stop-rec {
+  0%, 17% { opacity: 1; }
+  20%, 100% { opacity: 0; }
+}
+@keyframes hg-stop-card {
+  0%, 20% { opacity: 0; transform: translateY(2cqw); }
+  25%, 97% { opacity: 1; transform: none; }
+  100% { opacity: 0; transform: none; }
+}
+@keyframes hg-stop-save {
+  0%, 50% { opacity: 1; }
+  52%, 100% { opacity: 0; }
+}
+@keyframes hg-stop-saved {
+  0%, 50% { opacity: 0; }
+  52%, 97% { opacity: 1; }
+  100% { opacity: 0; }
+}
+
+/* Screenshot of an area */
+@keyframes hg-shot-cursor {
+  0% { left: 40%; top: 75%; opacity: 0; }
+  5% { opacity: 1; }
+  13%, 17% { left: 76%; top: 15%; }
+  25%, 30% { left: 70%; top: 55%; }
+  38%, 41% { left: 22%; top: 36%; }
+  60%, 94% { left: 68%; top: 80%; opacity: 1; }
+  100% { left: 68%; top: 80%; opacity: 0; }
+}
+@keyframes hg-shot-popup {
+  0%, 15% { opacity: 0; transform: scale(0.95); }
+  18%, 29% { opacity: 1; transform: none; }
+  32%, 100% { opacity: 0; transform: none; }
+}
+@keyframes hg-shot-hover {
+  0%, 23% { opacity: 0; }
+  25%, 29% { opacity: 1; }
+  31%, 100% { opacity: 0; }
+}
+@keyframes hg-shot-dim {
+  0%, 33% { opacity: 0; }
+  36%, 70% { opacity: 1; }
+  72%, 100% { opacity: 0; }
+}
+@keyframes hg-shot-rect {
+  0%, 40% { opacity: 0; width: 0; height: 0; }
+  41% { opacity: 1; width: 0; height: 0; }
+  60%, 69% { opacity: 1; width: 46%; height: 44%; }
+  71%, 100% { opacity: 0; width: 46%; height: 44%; }
+}
+@keyframes hg-shot-flash {
+  0%, 69% { opacity: 0; }
+  70% { opacity: 0.85; }
+  74%, 100% { opacity: 0; }
+}
+@keyframes hg-shot-toast {
+  0%, 72% { opacity: 0; transform: translate(-50%, 1.5cqw); }
+  75%, 95% { opacity: 1; transform: translate(-50%, 0); }
+  98%, 100% { opacity: 0; transform: translate(-50%, 0); }
+}
+
+/* Mark up and share */
+@keyframes hg-ann-cursor {
+  0% { left: 50%; top: 85%; opacity: 0; }
+  5% { opacity: 1; }
+  10% { left: 8%; top: 37%; }
+  20% { left: 35%; top: 53%; }
+  30% { left: 30%; top: 66%; }
+  40% { left: 56%; top: 63%; }
+  47% { left: 14%; top: 62%; }
+  55%, 94% { left: 82.5%; top: 26%; opacity: 1; }
+  100% { left: 82.5%; top: 26%; opacity: 0; }
+}
+@keyframes hg-ann-rect {
+  0%, 10% { opacity: 0; transform: scale(0); }
+  11% { opacity: 1; transform: scale(0); }
+  20%, 97% { opacity: 1; transform: scale(1); }
+  100% { opacity: 0; transform: scale(1); }
+}
+@keyframes hg-ann-arrow {
+  0%, 30% { stroke-dashoffset: 100; opacity: 1; }
+  40%, 97% { stroke-dashoffset: 0; opacity: 1; }
+  100% { stroke-dashoffset: 0; opacity: 0; }
+}
+@keyframes hg-ann-head {
+  0%, 39% { opacity: 0; }
+  40%, 97% { opacity: 1; }
+  100% { opacity: 0; }
+}
+@keyframes hg-ann-text {
+  0%, 46% { opacity: 0; transform: scale(0.9); }
+  49%, 97% { opacity: 1; transform: none; }
+  100% { opacity: 0; transform: none; }
+}
+@keyframes hg-ann-tool-rect {
+  0%, 6% { opacity: 0; }
+  8%, 22% { opacity: 1; }
+  24%, 100% { opacity: 0; }
+}
+@keyframes hg-ann-tool-arrow {
+  0%, 24% { opacity: 0; }
+  26%, 42% { opacity: 1; }
+  44%, 100% { opacity: 0; }
+}
+@keyframes hg-ann-tool-text {
+  0%, 43% { opacity: 0; }
+  45%, 52% { opacity: 1; }
+  54%, 100% { opacity: 0; }
+}
+@keyframes hg-ann-share {
+  0%, 63% { opacity: 1; }
+  64%, 100% { opacity: 0; }
+}
+@keyframes hg-ann-uploading {
+  0%, 63% { opacity: 0; }
+  64%, 72% { opacity: 1; }
+  73%, 100% { opacity: 0; }
+}
+@keyframes hg-ann-copied {
+  0%, 72% { opacity: 0; }
+  73%, 97% { opacity: 1; }
+  100% { opacity: 0; }
+}
+@keyframes hg-ann-toast {
+  0%, 72% { opacity: 0; transform: translate(-50%, 1.5cqw); }
+  75%, 95% { opacity: 1; transform: translate(-50%, 0); }
+  98%, 100% { opacity: 0; transform: translate(-50%, 0); }
+}
+@keyframes hg-spin {
+  to { transform: rotate(360deg); }
+}
+
+/* Recover after a crash */
+@keyframes hg-recov-rec {
+  0%, 38% { opacity: 1; }
+  40%, 100% { opacity: 0; }
+}
+@keyframes hg-recov-crash {
+  0%, 39% { opacity: 0; }
+  41%, 52% { opacity: 1; }
+  54%, 100% { opacity: 0; }
+}
+@keyframes hg-recov-list {
+  0%, 53% { opacity: 0; transform: translateY(1.5cqw); }
+  56%, 97% { opacity: 1; transform: none; }
+  100% { opacity: 0; transform: none; }
+}
+
+/* Upload and share a link */
+@keyframes hg-up-progress {
+  0%, 5% { width: 0; }
+  55%, 97% { width: 100%; }
+  100% { width: 100%; }
+}
+@keyframes hg-up-target {
+  0%, 4% { opacity: 0; }
+  7%, 97% { opacity: 1; }
+  100% { opacity: 0; }
+}
+@keyframes hg-up-flow {
+  0%, 5% { opacity: 0; }
+  8%, 55% { opacity: 1; }
+  58%, 100% { opacity: 0; }
+}
+@keyframes hg-up-link {
+  0%, 58% { opacity: 0; transform: translate(-50%, 1.5cqw) scale(0.96); }
+  62%, 95% { opacity: 1; transform: translate(-50%, 0); }
+  98%, 100% { opacity: 0; transform: translate(-50%, 0); }
+}
+@keyframes hg-up-check {
+  0%, 56% { opacity: 0; transform: scale(0.4); }
+  60%, 97% { opacity: 1; transform: scale(1); }
+  100% { opacity: 0; transform: scale(1); }
+}
+
+/* Scenes hold still on their --hg-still frame until hovered or focused (data-playing). */
+.hg:not([data-playing]) * {
+  animation-play-state: paused !important;
+  animation-delay: calc(-1 * var(--hg-still)) !important;
+}
+.hg:not([data-playing]) .hg-transient {
+  visibility: hidden;
+}

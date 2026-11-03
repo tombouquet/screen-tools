@@ -18,7 +18,7 @@ The script builds the extension, loads it into a headless Chromium, and saves 7 
 | `02-popup.png`             | Toolbar popup, cropped to the menu                              |
 | `03-screenshot-editor.png` | Screenshot editor with a box, arrow, note, highlight and pixelate |
 | `04-screenshots.png`       | Screenshots list                                                |
-| `05-videos.png`            | Latest videos, including an interrupted recording               |
+| `05-videos.png`            | Videos, including an interrupted recording                      |
 | `06-video.png`             | A recording in the player                                       |
 | `07-save-dialog.png`       | Save dialog with the size presets and Balanced picked           |
 
@@ -49,7 +49,7 @@ It needs the full Chromium build (`channel: 'chromium'`), because Playwright's d
 Before capturing, the script fills the extension with made-up data, so every view looks in use:
 
 - **Screenshots:** [`scripts/listing-samples.ts`](../../scripts/listing-samples.ts) holds 4 made-up web pages: an analytics dashboard, a docs site, a bakery and a task board. The script renders each one at 1440 × 900 and 2× in a plain tab, and stores the result as a screenshot with the page's title and address.
-- **Recordings:** the script records an 8-second 1080p WebM of a pointer moving over the dashboard, with Chrome's own `MediaRecorder` on a canvas. It stores it as 5 recordings with different dates, lengths and saved states. One has no length, so Latest videos shows it as interrupted and recovered.
+- **Recordings:** the script records an 8-second 1080p WebM of a pointer moving over the dashboard, with Chrome's own `MediaRecorder` on a canvas. It stores it as 5 recordings with different dates, lengths and saved states. One has no length, so Videos shows it as interrupted and recovered.
 - **Settings:** Screen + camera and System + mic are picked on the Record page.
 
 Every name, number, email address and site in the data is invented, and every address uses the `.example` domain. Dates count back from the moment you capture, so the screenshots always look recent.

@@ -1,25 +1,28 @@
-import { Film, Image, PlayCircle, Settings, Video } from 'lucide-react';
+import { CircleHelp, Film, Image, Settings, Video } from 'lucide-react';
 import { useEffect } from 'react';
 import { ThemeProvider } from '@/components/theme-provider';
 import { Toaster } from '@/components/ui/sonner';
 import { TooltipProvider } from '@/components/ui/tooltip';
 import { useBusy } from '@/hooks/use-busy';
 import { navigate, useRoute } from '@/hooks/use-route';
+import { useIsWide } from '@/hooks/use-wide';
 import { cn } from '@/lib/utils';
 import { currentVersion } from '@/lib/version';
 import { ChangelogPage } from '@/pages/changelog';
+import { HelpPage } from '@/pages/help';
 import { HomePage } from '@/pages/home';
-import { PlayerPage } from '@/pages/player';
 import { RecorderPage } from '@/pages/recorder';
 import { ScreenshotsPage } from '@/pages/screenshots';
 import { SettingsPage } from '@/pages/settings';
 import { VideosPage } from '@/pages/videos';
 
+const NAV_BUTTON =
+  'text-muted-foreground hover:bg-accent hover:text-foreground flex items-center gap-1.5 rounded-md px-2.5 py-1.5 text-sm font-medium transition-colors disabled:pointer-events-none disabled:opacity-50';
+
 const NAV = [
   { path: '/', label: 'Record', icon: Video },
-  { path: '/videos', label: 'Latest videos', icon: Film },
+  { path: '/videos', label: 'Videos', icon: Film },
   { path: '/screenshots', label: 'Screenshots', icon: Image },
-  { path: '/player', label: 'Player', icon: PlayCircle },
   { path: '/settings', label: 'Settings', icon: Settings },
 ];
 
@@ -30,9 +33,9 @@ function Page({ path }: { path: string }) {
   if (screenshot) return <ScreenshotsPage id={screenshot[1] ? Number(screenshot[1]) : undefined} />;
   const settings = path.match(/^\/settings(?:\/([\w-]+))?$/);
   if (settings) return <SettingsPage section={settings[1]} />;
+  const help = path.match(/^\/help(?:\/([\w-]+))?$/);
+  if (help) return <HelpPage topic={help[1]} />;
   switch (path) {
-    case '/player':
-      return <PlayerPage />;
     case '/changelog':
       return <ChangelogPage />;
     case '/home':
@@ -47,8 +50,9 @@ export function App() {
   const path = useRoute().split('?')[0]!;
   const busy = useBusy();
   const section = '/' + (path.split('/')[1] ?? '');
-  // The screenshot editor fills the tab exactly; it never scrolls the page.
-  const wide = /^\/screenshots\/\d+$/.test(path);
+  // The screenshot editor and a single recording fill the tab exactly; they never scroll the page.
+  const wideRequested = useIsWide();
+  const wide = /^\/screenshots\/\d+$/.test(path) || wideRequested;
 
   // Mid-recording, the header links or the browser's Back could change the route and
   // unmount the recorder, which would end the recording. Keep it on screen and put the
@@ -92,15 +96,23 @@ export function App() {
                   disabled={busy}
                   onClick={() => navigate(to)}
                   aria-current={section === to ? 'page' : undefined}
-                  className={cn(
-                    'text-muted-foreground hover:bg-accent hover:text-foreground flex items-center gap-1.5 rounded-md px-2.5 py-1.5 text-sm font-medium transition-colors disabled:pointer-events-none disabled:opacity-50',
-                    section === to && 'bg-accent text-foreground',
-                  )}
+                  className={cn(NAV_BUTTON, section === to && 'bg-accent text-foreground')}
                 >
                   <Icon className="size-4" />
                   {label}
                 </button>
               ))}
+              <button
+                type="button"
+                disabled={busy}
+                onClick={() => navigate('/help')}
+                aria-current={section === '/help' ? 'page' : undefined}
+                aria-label="Help"
+                title="Help"
+                className={cn(NAV_BUTTON, 'px-2', section === '/help' && 'bg-accent text-foreground')}
+              >
+                <CircleHelp className="size-4" />
+              </button>
             </nav>
           </header>
           <main className="flex min-h-0 flex-1 flex-col">

@@ -40,7 +40,7 @@ export interface Platform {
   copy: {
     /** The notification text when the browser won't let us screenshot a page. */
     blockedScreenshotMessage: string;
-    /** How to pin the toolbar icon. */
-    pinHint: string;
+    /** How to pin the toolbar icon, one step each. */
+    pinSteps: [string, string];
   };
 }

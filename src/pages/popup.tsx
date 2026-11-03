@@ -37,7 +37,7 @@ const SCREENSHOT: { mode: ScreenshotMode; label: string; icon: LucideIcon }[] = 
 ];
 
 const LINKS: { route: string; label: string; icon: LucideIcon }[] = [
-  { route: '/videos', label: 'Latest videos', icon: Film },
+  { route: '/videos', label: 'Videos', icon: Film },
   { route: '/screenshots', label: 'Screenshots', icon: Image },
   { route: '/settings', label: 'Settings', icon: Settings },
 ];

@@ -53,7 +53,7 @@ export type UploadSourceKind = 'recording' | 'screenshot';
 export type UploadStatus = 'uploading' | 'done' | 'failed' | 'interrupted';
 
 export interface UploadRow {
-  /** What was uploaded. Missing for files that aren't kept here (e.g. one opened in the player). */
+  /** What was uploaded. Missing for files that aren't kept here. */
   sourceKind?: UploadSourceKind;
   sourceId?: number;
   connector: ConnectorId;

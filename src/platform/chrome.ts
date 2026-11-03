@@ -51,6 +51,6 @@ export const chromePlatform: Platform = {
   screen: { captureScreen },
   copy: {
     blockedScreenshotMessage: 'Chrome blocks screenshots of its own pages, the Web Store and some others. Try another tab.',
-    pinHint: 'Pin Screen Tools: click the puzzle piece in the Chrome toolbar, then the pin next to Screen Tools.',
+    pinSteps: ['Click the puzzle piece in the Chrome toolbar.', 'Click the pin next to Screen Tools.'],
   },
 };

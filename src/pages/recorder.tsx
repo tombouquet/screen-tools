@@ -1,4 +1,18 @@
-import { Camera, Circle, Mic, Monitor, Pause, Play, Plus, Save, Settings2, Square, Trash2, Volume2, VolumeX } from 'lucide-react';
+import {
+  Camera,
+  Circle,
+  Mic,
+  Monitor,
+  Pause,
+  Play,
+  RotateCcw,
+  Settings2,
+  ShieldCheck,
+  Square,
+  Trash2,
+  Volume2,
+  VolumeX,
+} from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import { toast } from 'sonner';
 import { browser, type Browser } from 'wxt/browser';
@@ -6,19 +20,20 @@ import { ChoiceTiles } from '@/components/choice-tiles';
 import { MonitorCamera } from '@/components/icons';
 import { ConfirmDeleteDialog, UnsavedDialog } from '@/components/confirm-dialog';
 import { RecordedVideo } from '@/components/recorded-video';
-import { LargeFileNotice, useSaveVideo } from '@/components/save-video';
+import { RecordingLayout } from '@/components/recording-actions';
+import { useSaveVideo } from '@/components/save-video';
 import { UploadList } from '@/components/upload-list';
-import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
 import { useBeforeUnload } from '@/hooks/use-before-unload';
+import { useQuickShare } from '@/hooks/use-quick-share';
 import { setBusy } from '@/hooks/use-busy';
 import { navigate, useRoute } from '@/hooks/use-route';
 import { useSettings } from '@/hooks/use-settings';
 import { CaptureError } from '@/lib/capture';
 import { LARGE_FILE_BYTES } from '@/lib/compress';
-import { deleteRecording, updateRecording } from '@/lib/db';
+import { MAX_RECORDINGS, deleteRecording, updateRecording } from '@/lib/db';
 import { openAppTab } from '@/lib/download';
 import { fileExtension, formatBytes, formatDuration, recordingFileName } from '@/lib/formats';
 import type { AppMessage } from '@/lib/messages';
@@ -100,7 +115,7 @@ export function RecorderPage() {
       setPhase({ kind: 'finished', recording, saved: false });
     } catch (error) {
       console.error(error);
-      toast.error('Could not finish the recording', { description: 'It may still be in Latest videos.' });
+      toast.error('Could not finish the recording', { description: 'It may still be in Videos.' });
       setPhase({ kind: 'idle' });
     }
   };
@@ -168,7 +183,7 @@ export function RecorderPage() {
     navigate('/');
     // Reads `phase` as it is now; this only reacts to the route.
     if (phase.kind === 'finished') {
-      toast('Save or discard this recording first');
+      toast('Save or delete this recording first');
     } else if (phase.kind === 'idle') {
       setCaptureSource(autoStart);
       // Camera-only never opens the screen picker, so it can start on its own anywhere.
@@ -354,7 +369,7 @@ function LiveView({
   );
 }
 
-/** After stopping: play it back, compress, save, discard, or start a new recording. */
+/** After stopping: play it back, then download it, share a link, record again or delete it. */
 function FinishedView({
   recording,
   saved,
@@ -369,18 +384,29 @@ function FinishedView({
   const [unsavedOpen, setUnsavedOpen] = useState(false);
   const [discardOpen, setDiscardOpen] = useState(false);
   const { save: saveVideo, dialog: saveDialog } = useSaveVideo();
+  const quickShare = useQuickShare('video');
+  const sharing = quickShare.isSharing(recording.id);
+  const big = recording.blob.size > LARGE_FILE_BYTES;
+  const size = formatBytes(recording.blob.size);
 
-  /** Resolves false if the user cancels the save dialog. */
   // Saving again starts from the name used last time.
   const [fileName, setFileName] = useState(() => recordingFileName(new Date(), recording.mimeType));
 
+  /** Resolves false if the user cancels the save dialog. */
   const save = async (suggestCompression = false): Promise<boolean> => {
-    const savedAs = await saveVideo(recording.blob, recording.mimeType, fileName, { suggestCompression, recordingId: recording.id });
+    const savedAs = await saveVideo(recording.blob, recording.mimeType, fileName, {
+      suggestCompression,
+      recordingId: recording.id,
+      destination: 'local',
+    });
     if (!savedAs) return false;
     setFileName(`${savedAs}.${fileExtension(recording.mimeType)}`);
+    await markSaved();
+    return true;
+  };
+  const markSaved = async () => {
     await updateRecording(recording.id, { saved: true });
     onSaved();
-    return true;
   };
 
   const startNew = (force = false) => {
@@ -394,45 +420,49 @@ function FinishedView({
   const discard = async () => {
     await deleteRecording(recording.id);
     onDone();
-    toast('Recording discarded');
+    toast('Recording deleted');
   };
 
   return (
-    <Card className="my-auto">
-      <CardHeader className="flex flex-row items-center justify-between gap-4">
-        <div className="space-y-1.5">
-          <CardTitle>Recorded video</CardTitle>
-          <CardDescription>
-            {formatDuration(recording.durationMs)} · {fileExtension(recording.mimeType).toUpperCase()} ·{' '}
-            {formatBytes(recording.blob.size)}
-          </CardDescription>
-        </div>
-        {saved ? <Badge variant="secondary">Saved</Badge> : <Badge variant="outline">Not saved yet</Badge>}
-      </CardHeader>
-      <CardContent className="space-y-4">
-        {recording.blob.size > LARGE_FILE_BYTES && (
-          <LargeFileNotice size={recording.blob.size} onCompress={() => void save(true)} />
-        )}
-        <RecordedVideo blob={recording.blob} durationMs={recording.durationMs} />
-        <div className="flex flex-wrap justify-between gap-2">
-          <Button
-            variant="ghost"
-            className="text-destructive hover:bg-destructive/10 hover:text-destructive"
-            onClick={() => setDiscardOpen(true)}
-          >
-            <Trash2 /> Discard
+    <>
+      <RecordingLayout
+        title="Your recording is ready"
+        details={`${formatDuration(recording.durationMs)} · ${fileExtension(recording.mimeType).toUpperCase()} · ${size}`}
+        saved={saved}
+        actions={
+          <Button variant="ghost" onClick={() => startNew()}>
+            <RotateCcw /> Record again
           </Button>
-          <div className="flex flex-wrap gap-2">
-            <Button variant="outline" onClick={() => startNew()}>
-              <Plus /> New recording
-            </Button>
-            <Button onClick={() => void save()}>
-              <Save /> Save video
-            </Button>
-          </div>
-        </div>
-        <UploadList kind="recording" id={recording.id} onUploaded={onSaved} />
-      </CardContent>
+        }
+        onDelete={() => setDiscardOpen(true)}
+        share={{
+          quickShare,
+          sharing,
+          onShare: () =>
+            quickShare.share(
+              recording.id,
+              async () => ({ blob: recording.blob, fileName, mimeType: recording.mimeType }),
+              () => void markSaved(),
+            ),
+        }}
+        // A big file opens the save dialog on a smaller size.
+        onDownload={() => void save(big)}
+        menu={[]}
+        note={
+          <>
+            <ShieldCheck className="size-4 shrink-0" />
+            <span className="truncate">
+              {big
+                ? `At ${size}, it's big for email and chat. Download suggests a smaller size.`
+                : saved
+                  ? 'Saved. It stays in Videos too.'
+                  : `Already kept in Videos, until ${MAX_RECORDINGS} newer recordings replace it.`}
+            </span>
+          </>
+        }
+        video={<RecordedVideo fill blob={recording.blob} durationMs={recording.durationMs} />}
+        below={<UploadList kind="recording" id={recording.id} onUploaded={() => void markSaved()} />}
+      />
       <UnsavedDialog
         open={unsavedOpen}
         onOpenChange={setUnsavedOpen}
@@ -443,15 +473,15 @@ function FinishedView({
         open={discardOpen}
         onOpenChange={setDiscardOpen}
         onConfirm={() => void discard()}
-        title="Discard this recording?"
+        title="Delete this recording?"
         description={
           saved
-            ? "It's removed from Latest videos. The copy you saved stays in your downloads."
-            : "It's deleted and won't be in Latest videos. This can't be undone."
+            ? "It's removed from Videos. The copy you saved stays in your downloads."
+            : "It's deleted and won't be in Videos. This can't be undone."
         }
-        confirmLabel="Discard"
+        confirmLabel="Delete"
       />
       {saveDialog}
-    </Card>
+    </>
   );
 }

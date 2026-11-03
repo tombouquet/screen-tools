@@ -41,7 +41,7 @@ const SHOTS: Shot[] = [
     prepare: annotate,
   },
   { name: '04-screenshots', page: 'app.html#/screenshots', ready: 'img' },
-  { name: '05-videos', page: 'app.html#/videos', ready: 'text=Not saved' },
+  { name: '05-videos', page: 'app.html#/videos', ready: 'text=Interrupted' },
   {
     name: '06-video',
     page: `app.html#/videos/${NEWEST_RECORDING}`,
@@ -53,7 +53,7 @@ const SHOTS: Shot[] = [
     page: `app.html#/videos/${NEWEST_RECORDING}`,
     ready: 'video',
     prepare: async (page) => {
-      await page.getByRole('button', { name: 'Save video' }).click();
+      await page.getByRole('button', { name: 'Download', exact: true }).click();
       await page.getByText('% smaller').first().waitFor();
       await page.getByText('Balanced', { exact: true }).click();
       // The file name field takes focus with its text selected; drop the selection.
@@ -138,15 +138,16 @@ async function seed(context: BrowserContext, origin: string) {
   const video = await recordSample(context, await renderSample(context, RECORDING_PAGE));
 
   const page = await context.newPage();
-  await page.goto(`${origin}/app.html#/player`);
+  await page.goto(`${origin}/app.html#/home`);
   await page.evaluate(
     async ({ screenshots, video, settings }) => {
       localStorage.setItem('settings', JSON.stringify(settings));
       const bytes = (base64: string) => Uint8Array.from(atob(base64), (c) => c.charCodeAt(0));
 
-      // The app opens the same database on load; whichever opens first creates the stores.
+      // The app may open the same database on load and upgrade it first. With no version
+      // asked for, this opens whatever is there, and creates the stores only when it's new.
       const db = await new Promise<IDBDatabase>((resolve, reject) => {
-        const request = indexedDB.open('screen-tools', 1);
+        const request = indexedDB.open('screen-tools');
         request.onupgradeneeded = () => {
           request.result.createObjectStore('recordings', { autoIncrement: true });
           request.result.createObjectStore('chunks', { autoIncrement: true }).createIndex('recording', 'recording');

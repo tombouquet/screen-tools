@@ -13,12 +13,13 @@ import {
   Pencil,
   Redo2,
   RotateCcw,
+  Trash2,
   Square,
   Type,
   Undo2,
   type LucideIcon,
 } from 'lucide-react';
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import {
@@ -34,6 +35,7 @@ import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip
 import { UploadDialog, useConnectedDestinations } from '@/components/upload-dialog';
 import { UploadList } from '@/components/upload-list';
 import { useBeforeUnload } from '@/hooks/use-before-unload';
+import { MediaBar, SavedBadge } from '@/components/media-bar';
 import { useQuickShare } from '@/hooks/use-quick-share';
 import { useSettings } from '@/hooks/use-settings';
 import {
@@ -101,10 +103,16 @@ export function ScreenshotEditor({
   screenshot,
   onSaved,
   onRevert,
+  onDelete,
+  title,
 }: {
+  /** Back, title and details, at the start of the bar. */
+  title: ReactNode;
   screenshot: Screenshot;
   onSaved: (patch: Partial<Screenshot>) => void;
   onRevert: () => void;
+  /** Last item in the ⋯ menu. */
+  onDelete: () => void;
 }) {
   const settings = useSettings();
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -332,7 +340,9 @@ export function ScreenshotEditor({
 
   return (
     <div className="flex min-h-0 flex-1 flex-col gap-3">
-      <div className="bg-card flex flex-wrap items-center gap-2 rounded-lg border p-2">
+      <MediaBar>
+        {title}
+        <Separator orientation="vertical" className="h-6" />
         <ToggleGroup aria-label="Tool" value={[tool]} onValueChange={(next) => next[0] && setTool(next[0] as Tool)} spacing={1}>
           {TOOLS.map(({ tool: value, label, icon: Icon }) => (
             <Tooltip key={value}>
@@ -393,6 +403,7 @@ export function ScreenshotEditor({
           </IconButton>
         )}
         <div className="ml-auto flex items-center gap-2">
+          <SavedBadge saved={Boolean(screenshot.saved)} />
           <Tooltip>
             <TooltipTrigger
               render={
@@ -430,7 +441,7 @@ export function ScreenshotEditor({
               >
                 <Ellipsis />
               </TooltipTrigger>
-              <TooltipContent>Download or upload</TooltipContent>
+              <TooltipContent>More options</TooltipContent>
             </Tooltip>
             <DropdownMenuContent align="end" className="w-52">
               <DropdownMenuItem onClick={() => void download('png')}>
@@ -447,6 +458,10 @@ export function ScreenshotEditor({
                   </DropdownMenuItem>
                 </>
               )}
+              <DropdownMenuSeparator />
+              <DropdownMenuItem variant="destructive" onClick={onDelete}>
+                <Trash2 /> Delete
+              </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
           <UploadDialog
@@ -458,7 +473,7 @@ export function ScreenshotEditor({
             onUploaded={() => void persist()}
           />
         </div>
-      </div>
+      </MediaBar>
 
       <div ref={stageRef} className="bg-muted/50 flex min-h-0 flex-1 overflow-auto rounded-lg border p-4">
         {/* m-auto centres it, and unlike centring the flex items it can still scroll to the top. */}

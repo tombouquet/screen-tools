@@ -33,7 +33,9 @@ export const firefoxPlatform: Platform = {
   copy: {
     blockedScreenshotMessage:
       'Firefox blocks screenshots of its own pages (about: pages, addons.mozilla.org, reader view) and some others. Try another tab.',
-    pinHint:
-      'Pin Screen Tools: click the puzzle piece (Extensions) in the Firefox toolbar, then the gear next to Screen Tools and Pin to Toolbar.',
+    pinSteps: [
+      'Click the puzzle piece (Extensions) in the Firefox toolbar.',
+      'Click the gear next to Screen Tools, then Pin to Toolbar.',
+    ],
   },
 };
