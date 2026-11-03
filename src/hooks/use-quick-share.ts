@@ -1,4 +1,4 @@
-// "Upload and copy link": one click sends a screenshot to the destination used last
+// "Upload and copy link": one click sends a screenshot or recording to the destination used last
 // (or the first connected one) with a share link, and copies the link when it's done.
 // It runs through the same uploader as the Upload dialog, so it's listed, resumable
 // and guarded the same way; only the progress shows in a toast instead of a dialog.
@@ -13,17 +13,18 @@ import { ReconnectNeeded, type Connector } from '@/lib/connectors/types';
 import { UploadCancelled, cancel, getLiveUploads, startUpload, subscribeUploads, useUploadGuard } from '@/lib/connectors/upload';
 import { getSettings } from '@/lib/settings';
 
-// Screenshots with a quick share running in this window, so their buttons wait.
-let sharing: ReadonlySet<number> = new Set();
+// Screenshots and recordings with a quick share running in this window, so their
+// buttons wait. Keyed `screenshot:<id>` or `recording:<id>`.
+let sharing: ReadonlySet<string> = new Set();
 const listeners = new Set<() => void>();
 const subscribe = (listener: () => void) => {
   listeners.add(listener);
   return () => listeners.delete(listener);
 };
-function setSharing(id: number, on: boolean): void {
+function setSharing(key: string, on: boolean): void {
   const next = new Set(sharing);
-  if (on) next.add(id);
-  else next.delete(id);
+  if (on) next.add(key);
+  else next.delete(key);
   sharing = next;
   listeners.forEach((l) => l());
 }
@@ -33,13 +34,16 @@ export interface QuickShare {
   destination: Connector | undefined;
   /** False until the connected accounts have loaded. */
   ready: boolean;
-  isSharing: (screenshotId: number) => boolean;
-  share: (screenshotId: number, getFile: () => Promise<UploadFile>, onUploaded?: () => void) => void;
+  isSharing: (id: number) => boolean;
+  share: (id: number, getFile: () => Promise<UploadFile>, onUploaded?: () => void) => void;
 }
 
-export function useQuickShare(): QuickShare {
+/** Quick share for screenshots (`image`, the default) or recordings (`video`). */
+export function useQuickShare(kind: 'image' | 'video' = 'image'): QuickShare {
   const connections = useConnections();
-  const destinations = useConnectedDestinations('image');
+  const destinations = useConnectedDestinations(kind);
+  const sourceKind = kind === 'image' ? 'screenshot' : 'recording';
+  const key = (id: number) => `${sourceKind}:${id}`;
   const current = useSyncExternalStore(subscribe, () => sharing);
   useUploadGuard();
   const remembered = getSettings().saveDestination;
@@ -47,14 +51,14 @@ export function useQuickShare(): QuickShare {
   return {
     destination,
     ready: connections !== undefined,
-    isSharing: (id) => current.has(id),
+    isSharing: (id) => current.has(key(id)),
     share: (id, getFile, onUploaded) => {
       if (!destination) {
         showConnectFirst();
         return;
       }
-      if (sharing.has(id)) return;
-      void quickShare(destination, id, getFile, onUploaded);
+      if (sharing.has(key(id))) return;
+      void quickShare(destination, kind, id, getFile, onUploaded);
     },
   };
 }
@@ -66,16 +70,26 @@ function showConnectFirst(): void {
   });
 }
 
-async function quickShare(destination: Connector, id: number, getFile: () => Promise<UploadFile>, onUploaded?: () => void): Promise<void> {
+async function quickShare(
+  destination: Connector,
+  kind: 'image' | 'video',
+  id: number,
+  getFile: () => Promise<UploadFile>,
+  onUploaded?: () => void,
+): Promise<void> {
   const toastId = toast.loading(`Uploading to ${destination.name}…`);
-  setSharing(id, true);
+  const sourceKind = kind === 'image' ? 'screenshot' : 'recording';
+  const key = `${sourceKind}:${id}`;
+  setSharing(key, true);
   let unsubscribe: (() => void) | undefined;
   try {
     const file = await getFile();
     const running = await startUpload({
-      source: { kind: 'screenshot', id },
+      source: { kind: sourceKind, id },
       connectorId: destination.id,
-      job: { ...file, kind: 'image', share: true },
+      job: { ...file, kind, share: true },
+      // A recording goes up as its stored original, so a resume reads it from there.
+      blobIsSource: kind === 'video',
     });
     let shown = -1;
     const showProgress = () => {
@@ -123,6 +137,6 @@ async function quickShare(destination: Connector, id: number, getFile: () => Pro
     });
   } finally {
     unsubscribe?.();
-    setSharing(id, false);
+    setSharing(key, false);
   }
 }

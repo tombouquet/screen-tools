@@ -113,7 +113,7 @@ const IMAGES: Image[] = [
         highlight: { x: 222, y: 276, width: 838, height: 60 },
       },
     ],
-    alt: 'Latest videos list with a recording recovered after a crash',
+    alt: 'Videos list with a recording recovered after a crash',
   },
   {
     name: '04-save-smaller',

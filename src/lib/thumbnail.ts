@@ -1,4 +1,4 @@
-// Small preview images of recordings, for the Latest videos list.
+// Small preview images of recordings, for the Videos list.
 
 const WIDTH = 320;
 const TIMEOUT_MS = 8000;

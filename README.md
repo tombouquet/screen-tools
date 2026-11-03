@@ -2,6 +2,7 @@
 
 Chrome and Firefox extension that records your screen, a window, a tab or your camera, with microphone and system audio, and takes annotated screenshots. Free, no sign-up, no watermark. Nothing leaves your computer unless you connect Google Drive, Dropbox or your own upload server and upload a file. Tabs and system audio are Chrome only; see [Firefox](docs/firefox.md) for the other differences.
 
+- **Help:** the question mark in the header opens Help, with an animated walk-through of each task and answers to common questions. Home shows the three steps to get started.
 - **Toolbar popup:** one click to start recording the screen, the camera or both, or to take a screenshot. A Microphone switch turns the mic on or off for the next recording, and leaves system audio as it was.
 - **Countdown and quick stop:** recording starts after a 3-second countdown, shown in the recorder and on the toolbar icon. While recording, the icon shows `REC`; click it to stop.
 - **Screenshots:** capture a selected area, the visible area or the full page. Each opens in an editor with arrows, rectangles, ellipses, pen, highlighter, text, pixelate and crop, with undo. Download as PNG or JPG, or copy to the clipboard. Turn on **Copy screenshots to the clipboard** in Settings to have each new one copied as soon as it's taken, ready to paste. Saved at native resolution by default, or capped at 2560, 1920 or 1280 px wide in Settings. The latest 10 are kept. Full page scrolls the window; click the toolbar icon or press Esc to stop early and keep what's captured so far, and it stops by itself if you switch tabs. Click the icon or press Esc to cancel selecting an area. Pages that scroll an inner panel (Gmail and many web apps) capture only what's visible. Chrome blocks screenshots of its own pages and the Web Store.
@@ -10,7 +11,6 @@ Chrome and Firefox extension that records your screen, a window, a tab or your c
 - **Camera overlay:** pick the corner, size, shape (squircle by default, rectangle or circle), zoom and mirroring.
 - **Autosave:** recordings are written to disk every 5 seconds while you record, and the latest 5 are kept, so a crash or closed window loses at most a few seconds.
 - **Formats:** MP4 by default, or WebM, at 15, 24, 30 (default) or 60 fps, with the screen captured at native size (default), 4K, 1440p, 1080p, 720p or 480p. Set in Settings; the New recording page only asks what to capture and which audio.
-- **Player:** skip back and forward, and drop in any video file to play it or make an old WebM recording seekable.
 - **Save options:** pick a file name and a size when you save: the original, or a smaller copy from presets that show the estimated file size up front. Suggested when a video is over 25 MB. Compression runs on your computer and the original is kept. Turn the dialog off to save straight away.
 - **Cloud uploads:** upload a recording or screenshot to Google Drive or Dropbox, and copy a share link in one click. Connect an account in Settings first. Share links are on by default and the choice is remembered. Files go to a Screen Tools folder in your Drive, or `Apps/Screen Tools` in your Dropbox, and the extension can't see anything else there.
 - **Share link in one click:** **Share link** in the screenshot editor, or the link button on a screenshot in Screenshots, uploads it to the service you used last (or the first one connected) and copies the share link when it's done. With nothing connected, it points you to Settings.
@@ -30,13 +30,13 @@ Uploads are optional. When you click **Connect** in Settings, Chrome asks you to
 3. Turn on **Developer mode** (top right).
 4. Click **Load unpacked** and pick the folder.
 
-Click the toolbar icon to start a recording or take a screenshot, and click it again to stop a recording. A home page with a quick start and what's new opens in a new tab after installing.
+Click the toolbar icon to start a recording or take a screenshot, and click it again to stop a recording. A home page with a quick start opens in a new tab after installing.
 
 ## Updating
 
 Chrome doesn't update unpacked extensions on its own. To update, download the new zip from the [latest release](https://github.com/tombouquet/screen-tools/releases/latest), unzip it over your current folder, and click the reload button on `chrome://extensions`.
 
-The home page opens after every version change, with what's new in that version. You can open it from the logo, and the full changelog from the version number next to the title.
+The home page opens after every version change. You can open it from the logo, Help from the question mark, and the full changelog, with what's new in each version, from the version number next to the title.
 
 ## Development
 

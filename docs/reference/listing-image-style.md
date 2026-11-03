@@ -60,7 +60,7 @@ Inter loads from `rsms.me`, so build the images online. Offline, the headline fa
 | Small tile | Small promo tile              | Icon, name and a 2-line tagline, centred                  | None                                                  |
 | Marquee    | Marquee promo tile            | Icon, name and tagline on the left, 420 px wide           | The toolbar menu in front of the Record page          |
 
-Use Stacked when a split crop would shrink the UI's text below about 12 px, as with the editor and Latest videos.
+Use Stacked when a split crop would shrink the UI's text below about 12 px, as with the editor and Videos.
 
 ![The marquee: icon, name and tagline on the left, the toolbar menu in front of the Record page on the right](./listing-image-style/example-marquee.png)
 
@@ -83,7 +83,7 @@ Each image carries one large outline of the icon, the ring and dot, in the accen
 - Write the headline in sentence case, in 6 words or fewer.
 - Colour the last 2 or 3 words of the headline in the accent: the words that carry the benefit.
 - Give each screenshot 3 ticks of 7 words or fewer.
-- Use the extension's own words for features: Latest videos, Screen + camera, Capture full page.
+- Use the extension's own words for features: Videos, Screen + camera, Capture full page.
 - Describe only what the UI in the image does. Don't add numbers, comparisons or results.
 
 ## Image set
@@ -101,7 +101,7 @@ The script writes upload-ready PNGs to `out/showcase/`, with each image's alt te
 | -------------------------- | ---------- | -------------------------------------------- |
 | `01-record.png`            | 1280 × 800 | Record page, Screen + camera outlined        |
 | `02-screenshot-editor.png` | 1280 × 800 | Editor with annotations, tools outlined      |
-| `03-latest-videos.png`     | 1280 × 800 | Latest videos, the recovered video outlined  |
+| `03-latest-videos.png`     | 1280 × 800 | Videos, the recovered video outlined         |
 | `04-save-smaller.png`      | 1280 × 800 | Save dialog, the Balanced preset outlined    |
 | `05-toolbar.png`           | 1280 × 800 | Toolbar menu, the screenshot buttons outlined |
 | `small-promo-tile.png`     | 440 × 280  | Icon, name and tagline                       |
@@ -109,7 +109,7 @@ The script writes upload-ready PNGs to `out/showcase/`, with each image's alt te
 
 The script stops if a capture is missing or an image comes out with an alpha channel. It takes its colours, type and layouts from this guide, so change a style here and in the script together. Crops are in CSS pixels of the capture, half its pixel size, so when a view's layout moves, update its crop in the script.
 
-The Screenshots list and player captures stay out of the set as spares: the editor and Latest videos show the same features with more to see.
+The Screenshots list and player captures stay out of the set as spares: the editor and Videos show the same features with more to see.
 
 ## Checklist
 

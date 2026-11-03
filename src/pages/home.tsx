@@ -1,10 +1,9 @@
 // Welcome page, opened after installs and version changes.
-import { Film, Image, PlayCircle, Settings, Video, type LucideIcon } from 'lucide-react';
-import changelog from '../../CHANGELOG.md?raw';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { ArrowRight, CircleHelp, Film, Image, Settings, Video, type LucideIcon } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { Card } from '@/components/ui/card';
 import { navigate } from '@/hooks/use-route';
-import { currentVersion } from '@/lib/version';
-import { Inline, parseChangelog } from '@/pages/changelog';
+import { GET_STARTED } from '@/pages/help';
 import { platform } from '@/platform';
 
 /** What the screen picker offers, e.g. "a window or a tab". */
@@ -12,26 +11,13 @@ const SOURCES = platform.capabilities.tabCapture ? 'a window, a tab' : 'a window
 
 const ACTIONS: { path: string; label: string; description: string; icon: LucideIcon }[] = [
   { path: '/', label: 'Record', description: `Your screen, ${SOURCES} or your camera, with audio.`, icon: Video },
-  { path: '/videos', label: 'Latest videos', description: 'Your last 5 recordings, saved as you record.', icon: Film },
+  { path: '/videos', label: 'Videos', description: 'Your last 5 recordings, saved as you record.', icon: Film },
   { path: '/screenshots', label: 'Screenshots', description: 'Your last 10 screenshots, ready to annotate.', icon: Image },
-  { path: '/player', label: 'Player', description: 'Play any video file, or make an old WebM seekable.', icon: PlayCircle },
   { path: '/settings', label: 'Settings', description: 'Camera, microphone, formats, uploads and theme.', icon: Settings },
 ];
 
-const STEPS = [
-  platform.copy.pinHint,
-  'Click the toolbar icon to record the screen, the camera or both, or to take a screenshot.',
-  platform.capabilities.screenPickerNeedsGesture
-    ? 'Click Start recording, pick what to share, and recording starts after a 3-second countdown. While recording, the icon shows REC; click it to stop.'
-    : 'Recording starts after a 3-second countdown. While recording, the icon shows REC; click it to stop.',
-];
 
 export function HomePage() {
-  const current = currentVersion();
-  const releases = parseChangelog(changelog);
-  // A dev build can be ahead of the changelog, so fall back to the latest release.
-  const release = releases.find((r) => r.version === current) ?? releases[0];
-
   return (
     <div className="space-y-4">
       <div className="space-y-1">
@@ -42,7 +28,7 @@ export function HomePage() {
         </p>
       </div>
 
-      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
         {ACTIONS.map(({ path, label, description, icon: Icon }) => (
           <button
             key={path}
@@ -59,40 +45,41 @@ export function HomePage() {
         ))}
       </div>
 
-      <Card>
-        <CardHeader>
-          <CardTitle>How to use it</CardTitle>
-          <CardDescription>Everything starts from the toolbar icon.</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <ol className="list-decimal space-y-1 pl-5">
-            {STEPS.map((step) => (
-              <li key={step}>{step}</li>
+      <section className="space-y-3">
+        <div className="flex flex-wrap items-end justify-between gap-3">
+          <div className="space-y-1">
+            <h3 className="font-semibold">Get started</h3>
+            <p className="text-muted-foreground text-sm">Everything starts from the toolbar icon.</p>
+          </div>
+          <Button variant="outline" onClick={() => navigate('/help')}>
+            <CircleHelp /> Help and tips <ArrowRight />
+          </Button>
+        </div>
+        <Card className="gap-0 overflow-hidden p-0">
+          <ol className="grid divide-y md:grid-cols-3 md:divide-x md:divide-y-0">
+            {GET_STARTED.map(({ title, text, icon: Icon, topic }, i) => (
+              <li key={title}>
+                <button
+                  type="button"
+                  onClick={() => navigate(`/help/${topic}`)}
+                  className="hover:bg-accent/50 flex h-full w-full items-start gap-3 p-4 text-left transition-colors"
+                >
+                  <span className="bg-muted grid size-9 shrink-0 place-items-center rounded-lg">
+                    <Icon className="size-4" />
+                  </span>
+                  <span className="space-y-0.5">
+                    <span className="block text-sm font-medium">
+                      {i + 1}. {title}
+                    </span>
+                    <span className="text-muted-foreground block text-sm">{text}</span>
+                  </span>
+                </button>
+              </li>
             ))}
           </ol>
-        </CardContent>
-      </Card>
-
-      {release && (
-        <Card>
-          <CardHeader>
-            <CardTitle>What's new in v{release.version}</CardTitle>
-            {release.date && <CardDescription>{release.date}</CardDescription>}
-          </CardHeader>
-          <CardContent className="space-y-3">
-            <ul className="list-disc space-y-1 pl-5">
-              {release.sections.flatMap((section) => section.items).map((item, i) => (
-                <li key={i}>
-                  <Inline text={item} />
-                </li>
-              ))}
-            </ul>
-            <a href="#/changelog" className="inline-block underline underline-offset-4">
-              Full changelog
-            </a>
-          </CardContent>
         </Card>
-      )}
+      </section>
+
     </div>
   );
 }

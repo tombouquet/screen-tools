@@ -35,7 +35,8 @@ const formatTime = (seconds: number) => formatDuration(seconds * 1000);
  * has no duration in its header until it's made seekable, so it's shown until the
  * browser works the real one out.
  */
-export function RecordedVideo({ blob, durationMs }: { blob: Blob; durationMs?: number }) {
+/** With `fill`, it takes its parent's height and letterboxes the video, instead of a 16:9 box. */
+export function RecordedVideo({ blob, durationMs, fill }: { blob: Blob; durationMs?: number; fill?: boolean }) {
   const frame = useRef<HTMLDivElement>(null);
   const video = useRef<HTMLVideoElement>(null);
   const [url, setUrl] = useState<string>();
@@ -191,7 +192,7 @@ export function RecordedVideo({ blob, durationMs }: { blob: Blob; durationMs?: n
       ref={frame}
       className={cn(
         'group/player relative w-full overflow-hidden bg-black select-none',
-        fullscreen ? 'h-full' : 'aspect-video rounded-lg',
+        fullscreen ? 'h-full' : fill ? 'h-full rounded-lg' : 'aspect-video rounded-lg',
         !showControls && 'cursor-none',
       )}
       onPointerMove={wake}

@@ -14,7 +14,7 @@ export function ConfirmDeleteDialog({
   onOpenChange,
   onConfirm,
   title = 'Delete this video?',
-  description = "It's removed from your latest videos. This can't be undone.",
+  description = "It's removed from Videos. This can't be undone.",
   confirmLabel = 'Delete',
 }: {
   open: boolean;
@@ -66,7 +66,7 @@ export function UnsavedDialog({
         <AlertDialogHeader>
           <AlertDialogTitle>Save your video first?</AlertDialogTitle>
           <AlertDialogDescription>
-            You haven't saved this recording. It stays in Latest videos until 5 newer recordings replace it.
+            You haven't saved this recording. It stays in Videos until 5 newer recordings replace it.
           </AlertDialogDescription>
         </AlertDialogHeader>
         <AlertDialogFooter>

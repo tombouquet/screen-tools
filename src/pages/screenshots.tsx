@@ -1,12 +1,12 @@
-import { ArrowLeft, Copy, Download, Image as ImageIcon, Link2, Loader2, Trash2, type LucideIcon } from 'lucide-react';
+import { ArrowLeft, Copy, Download, Image as ImageIcon, Link2, Trash2 } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import { toast } from 'sonner';
 import { ConfirmDeleteDialog } from '@/components/confirm-dialog';
+import { MediaTitle } from '@/components/media-bar';
+import { EmptyMedia, MediaCard, MediaGrid, QuickAction } from '@/components/media-grid';
 import { ScreenshotEditor } from '@/components/screenshot-editor';
-import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import type { UploadFile } from '@/components/upload-dialog';
 import { useQuickShare } from '@/hooks/use-quick-share';
 import { navigate } from '@/hooks/use-route';
@@ -14,7 +14,6 @@ import { copyImageNow } from '@/lib/clipboard';
 import { downloadBlob } from '@/lib/download';
 import { screenshotFileName } from '@/lib/formats';
 import { getSettings } from '@/lib/settings';
-import { cn } from '@/lib/utils';
 import { MAX_SCREENSHOTS, deleteScreenshot, getScreenshot, listScreenshots, updateScreenshot, type Screenshot } from '@/lib/db';
 
 const dateFormat = new Intl.DateTimeFormat(undefined, { dateStyle: 'medium', timeStyle: 'short' });
@@ -95,52 +94,52 @@ function ScreenshotList() {
       <CardHeader>
         <CardTitle>Screenshots</CardTitle>
         <CardDescription>
-          Your latest {MAX_SCREENSHOTS} screenshots. Take one from the toolbar icon; open one to edit it. Share link uploads one and copies the link in one click.
+          Your latest {MAX_SCREENSHOTS} screenshots. Open one to edit it; Share link uploads one and copies the link in one click.
         </CardDescription>
       </CardHeader>
       <CardContent>
         {screenshots?.length === 0 && (
-          <div className="text-muted-foreground flex flex-col items-center gap-3 py-10 text-sm">
-            <ImageIcon className="size-8" />
-            <p>No screenshots yet. Click the toolbar icon and pick a capture.</p>
-          </div>
+          <EmptyMedia icon={ImageIcon}>No screenshots yet. Click the toolbar icon and pick a capture.</EmptyMedia>
         )}
-        <ul className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+        <MediaGrid>
           {screenshots?.map((screenshot) => (
-            <li key={screenshot.id} className="group relative">
-              <Thumbnail screenshot={screenshot} />
-              {/* Stays visible while its link is uploading, so the spinner shows. */}
-              <div
-                className={cn(
-                  'absolute top-3 right-3 flex gap-1 opacity-0 transition-opacity group-focus-within:opacity-100 group-hover:opacity-100',
-                  quickShare.isSharing(screenshot.id) && 'opacity-100',
-                )}
-              >
-                <QuickAction
-                  label={quickShare.destination ? `Share link: upload to ${quickShare.destination.name} and copy the link` : 'Share link'}
-                  icon={Link2}
-                  primary
-                  busy={quickShare.isSharing(screenshot.id)}
-                  disabled={!quickShare.ready || quickShare.isSharing(screenshot.id)}
-                  onClick={() => quickShare.share(screenshot.id, () => screenshotFile(screenshot), () => void markSaved(screenshot.id))}
-                />
-                <QuickAction
-                  label="Copy"
-                  icon={Copy}
-                  onClick={() => void copyScreenshot(screenshot).then(async (ok) => {
-                      if (ok) await markSaved(screenshot.id);
-                    })}
-                />
-                <QuickAction
-                  label={`Download ${getSettings().imageFormat.toUpperCase()}`}
-                  icon={Download}
-                  onClick={() => void downloadScreenshot(screenshot).then(() => markSaved(screenshot.id))}
-                />
-                <QuickAction label="Delete" icon={Trash2} destructive onClick={() => setDeleting(screenshot.id)} />
-              </div>
-            </li>
+            <MediaCard
+              key={screenshot.id}
+              preview={<ScreenshotPreview screenshot={screenshot} />}
+              title={screenshot.title || 'Screenshot'}
+              details={`${dateFormat.format(new Date(screenshot.date))} · ${screenshot.width} × ${screenshot.height}`}
+              onOpen={() => navigate(`/screenshots/${screenshot.id}`)}
+              pinActions={quickShare.isSharing(screenshot.id)}
+              actions={
+                <>
+                  <QuickAction
+                    label={quickShare.destination ? `Share link: upload to ${quickShare.destination.name} and copy the link` : 'Share link'}
+                    icon={Link2}
+                    primary
+                    busy={quickShare.isSharing(screenshot.id)}
+                    disabled={!quickShare.ready || quickShare.isSharing(screenshot.id)}
+                    onClick={() => quickShare.share(screenshot.id, () => screenshotFile(screenshot), () => void markSaved(screenshot.id))}
+                  />
+                  <QuickAction
+                    label="Copy"
+                    icon={Copy}
+                    onClick={() =>
+                      void copyScreenshot(screenshot).then(async (ok) => {
+                        if (ok) await markSaved(screenshot.id);
+                      })
+                    }
+                  />
+                  <QuickAction
+                    label={`Download ${getSettings().imageFormat.toUpperCase()}`}
+                    icon={Download}
+                    onClick={() => void downloadScreenshot(screenshot).then(() => markSaved(screenshot.id))}
+                  />
+                  <QuickAction label="Delete" icon={Trash2} destructive onClick={() => setDeleting(screenshot.id)} />
+                </>
+              }
+            />
           ))}
-        </ul>
+        </MediaGrid>
       </CardContent>
       <ConfirmDeleteDialog
         open={deleting !== undefined}
@@ -153,64 +152,9 @@ function ScreenshotList() {
   );
 }
 
-function QuickAction({
-  label,
-  icon: Icon,
-  destructive,
-  primary,
-  busy,
-  disabled,
-  onClick,
-}: {
-  label: string;
-  icon: LucideIcon;
-  destructive?: boolean;
-  /** The one-click action, drawn filled so it stands out. */
-  primary?: boolean;
-  /** Shows a spinner in place of the icon. */
-  busy?: boolean;
-  disabled?: boolean;
-  onClick: () => void;
-}) {
-  return (
-    <Tooltip>
-      <TooltipTrigger
-        render={
-          <Button
-            variant={primary ? 'default' : 'secondary'}
-            size="icon-sm"
-            aria-label={label}
-            disabled={disabled}
-            onClick={onClick}
-            className={destructive ? 'text-destructive hover:text-destructive shadow-sm' : 'shadow-sm'}
-          />
-        }
-      >
-        {busy ? <Loader2 className="animate-spin" /> : <Icon />}
-      </TooltipTrigger>
-      <TooltipContent>{label}</TooltipContent>
-    </Tooltip>
-  );
-}
-
-function Thumbnail({ screenshot }: { screenshot: Screenshot }) {
+function ScreenshotPreview({ screenshot }: { screenshot: Screenshot }) {
   const url = useObjectUrl(screenshot.blob);
-  return (
-    <button
-      className="hover:bg-accent flex w-full flex-col gap-2 rounded-lg border p-2 text-left select-none"
-      onClick={() => navigate(`/screenshots/${screenshot.id}`)}
-    >
-      <span className="bg-muted flex aspect-video w-full items-center justify-center overflow-hidden rounded-md">
-        {url && <img src={url} alt="" draggable={false} className="max-h-full max-w-full object-contain select-none" />}
-      </span>
-      <span className="min-w-0 px-1">
-        <span className="block truncate text-sm font-medium">{screenshot.title || 'Screenshot'}</span>
-        <span className="text-muted-foreground text-xs">
-          {dateFormat.format(new Date(screenshot.date))} · {screenshot.width} × {screenshot.height}
-        </span>
-      </span>
-    </button>
-  );
+  return url ? <img src={url} alt="" draggable={false} className="max-h-full max-w-full object-contain select-none" /> : null;
 }
 
 /**
@@ -285,28 +229,19 @@ function ScreenshotDetail({ id }: { id: number }) {
 
   return (
     <div className="flex min-h-0 flex-1 flex-col gap-3">
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <div className="flex min-w-0 items-center gap-3">
-          <BackButton />
-          <div className="min-w-0">
-            <p className="truncate text-sm font-medium" title={screenshot.url}>
-              {screenshot.title || 'Screenshot'}
-            </p>
-            <p className="text-muted-foreground text-xs">{dateFormat.format(new Date(screenshot.date))}</p>
-          </div>
-        </div>
-        <div className="flex items-center gap-2">
-          {screenshot.saved ? <Badge variant="secondary">Saved</Badge> : <Badge variant="outline">Not saved</Badge>}
-          <Button variant="destructive" size="sm" onClick={() => setConfirmOpen(true)}>
-            <Trash2 /> Delete
-          </Button>
-        </div>
-      </div>
       <ScreenshotEditor
         key={revision}
+        title={
+          <MediaTitle
+            back={{ to: '/screenshots', label: 'All screenshots' }}
+            title={screenshot.title || 'Screenshot'}
+            details={dateFormat.format(new Date(screenshot.date))}
+          />
+        }
         screenshot={screenshot}
         onSaved={(patch) => setScreenshot({ ...screenshot, ...patch })}
         onRevert={() => void revert()}
+        onDelete={() => setConfirmOpen(true)}
       />
       <ConfirmDeleteDialog
         open={confirmOpen}
