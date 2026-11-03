@@ -1,5 +1,14 @@
 # Changelog
 
+## [1.8.0](https://github.com/tombouquet/screen-tools/compare/v1.7.0...v1.8.0) (2026-11-03)
+
+
+### Features
+
+* copy new screenshots to the clipboard and share a link in one click ([#37](https://github.com/tombouquet/screen-tools/issues/37)) ([373dc1c](https://github.com/tombouquet/screen-tools/commit/373dc1cbab8846f412d002fc8c24b44f8ddb3313))
+* Help page, a simpler screen after recording and matching media pages ([#42](https://github.com/tombouquet/screen-tools/issues/42)) ([2b8242c](https://github.com/tombouquet/screen-tools/commit/2b8242cf35ad8546e4a37ebe3f6e6396023aa50f))
+* simpler New recording page and a mic switch in the popup ([#38](https://github.com/tombouquet/screen-tools/issues/38)) ([55f0e41](https://github.com/tombouquet/screen-tools/commit/55f0e4104dff86b65f4a6462861f974acfff5205))
+
 ## [1.7.0](https://github.com/tombouquet/screen-tools/compare/v1.6.0...v1.7.0) (2026-11-02)
 
 
