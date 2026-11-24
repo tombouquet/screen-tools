@@ -42,6 +42,16 @@ export const SCREEN_RESOLUTIONS = [
 ] as const;
 export type ScreenResolutionId = (typeof SCREEN_RESOLUTIONS)[number]['id'];
 
+// Bits per pixel per frame, so the bitrate follows the recording's size and frame rate.
+// 0 leaves the bitrate to the browser, which records at about 2.5 Mbps whatever the size.
+export const VIDEO_BITRATES = [
+  { id: 'standard', label: 'Standard', bitsPerPixel: 0, min: 0 },
+  { id: 'high', label: 'High', bitsPerPixel: 0.1, min: 5_000_000 },
+  { id: 'very-high', label: 'Very high', bitsPerPixel: 0.2, min: 10_000_000 },
+] as const;
+export type VideoBitrateId = (typeof VIDEO_BITRATES)[number]['id'];
+const MAX_VIDEO_BITRATE = 80_000_000;
+
 /** Width caps on saved screenshots; native keeps every pixel the screen captured. */
 export const SCREENSHOT_QUALITIES = [
   { id: 'native', label: 'Native (full resolution)', maxWidth: 0 },
@@ -59,6 +69,7 @@ export interface Settings {
   format: OutputFormat;
   frameRate: FrameRate;
   screenResolution: ScreenResolutionId;
+  videoBitrate: VideoBitrateId;
   cameraId: string;
   microphoneId: string;
   cameraResolution: CameraResolutionId;
@@ -90,6 +101,7 @@ export const DEFAULT_SETTINGS: Settings = {
   format: 'mp4',
   frameRate: 30,
   screenResolution: 'native',
+  videoBitrate: 'standard',
   cameraId: '',
   microphoneId: '',
   cameraResolution: '1080p',
@@ -125,6 +137,7 @@ function sanitize(raw: Partial<Record<keyof Settings | 'askFileName', unknown>>)
     format: isFormatSupported('mp4') ? oneOf(raw.format, ['webm', 'mp4'], d.format) : 'webm',
     frameRate: FRAME_RATES.includes(Number(raw.frameRate) as FrameRate) ? (Number(raw.frameRate) as FrameRate) : d.frameRate,
     screenResolution: oneOf(raw.screenResolution, SCREEN_RESOLUTIONS.map((r) => r.id), d.screenResolution),
+    videoBitrate: oneOf(raw.videoBitrate, VIDEO_BITRATES.map((b) => b.id), d.videoBitrate),
     cameraId: typeof raw.cameraId === 'string' ? raw.cameraId : d.cameraId,
     microphoneId: typeof raw.microphoneId === 'string' ? raw.microphoneId : d.microphoneId,
     cameraResolution: oneOf(raw.cameraResolution, CAMERA_RESOLUTIONS.map((r) => r.id), d.cameraResolution),
@@ -205,6 +218,13 @@ export function subscribeSettings(listener: () => void): () => void {
 
 export function screenResolution(id: ScreenResolutionId) {
   return SCREEN_RESOLUTIONS.find((r) => r.id === id) ?? SCREEN_RESOLUTIONS[0];
+}
+
+export function videoBitsPerSecond(id: VideoBitrateId, width: number, height: number, frameRate: number): number | undefined {
+  const bitrate = VIDEO_BITRATES.find((b) => b.id === id);
+  if (!bitrate?.bitsPerPixel) return undefined;
+  const bits = Math.round(width * height * frameRate * bitrate.bitsPerPixel);
+  return Math.min(Math.max(bits, bitrate.min), MAX_VIDEO_BITRATE);
 }
 
 /** 0 means no cap. */

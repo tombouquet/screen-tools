@@ -7,14 +7,17 @@ import { isFormatSupported } from '@/lib/formats';
 import {
   FRAME_RATES,
   SCREEN_RESOLUTIONS,
+  VIDEO_BITRATES,
   updateSettings,
   type FrameRate,
   type OutputFormat,
   type ScreenResolutionId,
   type Settings,
+  type VideoBitrateId,
 } from '@/lib/settings';
 
 const SCREEN_RESOLUTION_OPTIONS = SCREEN_RESOLUTIONS.map((r) => ({ value: r.id as ScreenResolutionId, label: r.label }));
+const VIDEO_BITRATE_OPTIONS = VIDEO_BITRATES.map((b) => ({ value: b.id as VideoBitrateId, label: b.label }));
 const FRAME_RATE_HINTS: Record<FrameRate, string> = {
   15: 'Smallest files',
   24: 'Film look',
@@ -72,6 +75,18 @@ export function RecordingSection({ settings }: { settings: Settings }) {
             items={SCREEN_RESOLUTION_OPTIONS}
             value={settings.screenResolution}
             onValueChange={(screenResolution) => updateSettings({ screenResolution })}
+          />
+        </SettingRow>
+        <SettingRow
+          id="video-bitrate"
+          label="Video bitrate"
+          description="How much data each second of video gets. Higher keeps text and fast movement sharper, with bigger files."
+        >
+          <OptionSelect
+            id="video-bitrate"
+            items={VIDEO_BITRATE_OPTIONS}
+            value={settings.videoBitrate}
+            onValueChange={(videoBitrate) => updateSettings({ videoBitrate })}
           />
         </SettingRow>
       </SettingGroup>
