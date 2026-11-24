@@ -15,7 +15,7 @@ import {
 } from './db';
 import { isWebm, pickMimeType } from './formats';
 import { makeSeekable } from './optimize';
-import { cameraResolution, screenResolution, type Settings } from './settings';
+import { cameraResolution, screenResolution, videoBitsPerSecond, type Settings } from './settings';
 
 /** How often MediaRecorder hands over a chunk, i.e. the most a crash can lose. */
 const CHUNK_MS = 5000;
@@ -144,7 +144,10 @@ export class RecordingSession {
       const audioTracks = mixer?.stream.getAudioTracks() ?? [];
       const recorded = new MediaStream([...canvasStream.getVideoTracks(), ...audioTracks]);
       const mimeType = pickMimeType(settings.format);
-      const recorder = new MediaRecorder(recorded, { mimeType });
+      const recorder = new MediaRecorder(recorded, {
+        mimeType,
+        videoBitsPerSecond: videoBitsPerSecond(settings.videoBitrate, compositor.width, compositor.height, settings.frameRate),
+      });
 
       const session = new RecordingSession(canvasStream, recorder, cleanup, callbacks);
       screenStream?.getVideoTracks()[0]?.addEventListener('ended', () => {

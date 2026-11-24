@@ -56,8 +56,8 @@ export class Compositor {
   private stopTicker?: () => void;
 
   constructor(
-    width: number,
-    height: number,
+    readonly width: number,
+    readonly height: number,
     private readonly fps: number,
   ) {
     this.canvas.width = width;
