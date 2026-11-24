@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.9.0](https://github.com/tombouquet/screen-tools/compare/v1.8.0...v1.9.0) (2026-11-24)
+
+
+### Features
+
+* video bitrate setting for sharper recordings ([#43](https://github.com/tombouquet/screen-tools/issues/43)) ([376e3d1](https://github.com/tombouquet/screen-tools/commit/376e3d1919b1ac3656c07477c288e1645713fb70))
+
 ## [1.8.0](https://github.com/tombouquet/screen-tools/compare/v1.7.0...v1.8.0) (2026-11-03)
 
 
